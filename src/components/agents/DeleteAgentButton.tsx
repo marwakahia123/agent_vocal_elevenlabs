@@ -13,32 +13,16 @@ export default function DeleteAgentButton({ agentId, onDelete }: Props) {
 
   if (confirming) {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+      <div className="flex items-center gap-1">
         <button
           onClick={() => onDelete(agentId)}
-          style={{
-            fontSize: "0.75rem",
-            backgroundColor: "#dc2626",
-            color: "white",
-            padding: "0.25rem 0.5rem",
-            borderRadius: "0.25rem",
-            border: "none",
-            cursor: "pointer",
-          }}
+          className="text-xs bg-red-600 text-white px-2 py-1 rounded border-none cursor-pointer hover:bg-red-700"
         >
           Confirmer
         </button>
         <button
           onClick={() => setConfirming(false)}
-          style={{
-            fontSize: "0.75rem",
-            backgroundColor: "#e5e7eb",
-            color: "#374151",
-            padding: "0.25rem 0.5rem",
-            borderRadius: "0.25rem",
-            border: "none",
-            cursor: "pointer",
-          }}
+          className="text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded border-none cursor-pointer hover:bg-slate-300"
         >
           Annuler
         </button>
@@ -49,20 +33,10 @@ export default function DeleteAgentButton({ agentId, onDelete }: Props) {
   return (
     <button
       onClick={() => setConfirming(true)}
-      className="delete-btn"
+      className="delete-btn opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-transparent border-none cursor-pointer text-slate-400 rounded hover:text-red-500"
       title="Supprimer"
-      style={{
-        opacity: 0,
-        transition: "opacity 0.2s",
-        padding: "0.25rem",
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-        color: "#9ca3af",
-        borderRadius: "0.25rem",
-      }}
     >
-      <Trash2 style={{ height: "1rem", width: "1rem" }} />
+      <Trash2 className="h-4 w-4" />
     </button>
   );
 }

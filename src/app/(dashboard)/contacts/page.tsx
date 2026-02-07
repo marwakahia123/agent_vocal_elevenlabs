@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { makeOutboundCall } from "@/lib/elevenlabs";
+import { AnimatePresence, motion } from "framer-motion";
 import Papa from "papaparse";
 import type { Contact } from "@/types/database";
 
@@ -98,39 +99,27 @@ function AddContactModal({
   return (
     <div
       onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 50,
-        padding: "1rem",
-      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
     >
-      <div
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
         onClick={(e) => e.stopPropagation()}
-        style={{
-          backgroundColor: "white",
-          borderRadius: "0.75rem",
-          width: "100%",
-          maxWidth: "500px",
-          maxHeight: "90vh",
-          overflow: "auto",
-          padding: "1.5rem",
-        }}
+        className="relative bg-white rounded-xl w-full max-w-[500px] max-h-[90vh] overflow-auto p-6 shadow-2xl"
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#111827", margin: 0 }}>
-            Nouveau contact
-          </h2>
-          <button onClick={onClose} className="btn-ghost" style={{ padding: "0.25rem" }}>
-            <X size={20} />
-          </button>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-semibold text-slate-900 m-0">Nouveau contact</h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X size={20} /></button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="label">Prenom *</label>
               <input className="input-field" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
@@ -140,7 +129,7 @@ function AddContactModal({
               <input className="input-field" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="label">Telephone</label>
               <input className="input-field" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+33 6 12 34 56 78" />
@@ -150,7 +139,7 @@ function AddContactModal({
               <input className="input-field" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="label">Entreprise</label>
               <input className="input-field" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
@@ -160,28 +149,22 @@ function AddContactModal({
               <input className="input-field" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
             </div>
           </div>
-          <div style={{ marginBottom: "1rem" }}>
+          <div className="mb-4">
             <label className="label">Tags (separes par des virgules)</label>
             <input className="input-field" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="vip, prospect, client" />
           </div>
-          <div style={{ marginBottom: "1.5rem" }}>
+          <div className="mb-6">
             <label className="label">Notes</label>
-            <textarea
-              className="input-field"
-              rows={3}
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              style={{ resize: "vertical" }}
-            />
+            <textarea className="input-field resize-y" rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </div>
-          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+          <div className="flex gap-3 justify-end">
             <button type="button" onClick={onClose} className="btn-secondary">Annuler</button>
             <button type="submit" className="btn-primary" disabled={saving}>
               {saving ? "Enregistrement..." : "Ajouter le contact"}
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -273,55 +256,36 @@ function ImportCSVModal({
   return (
     <div
       onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 50,
-        padding: "1rem",
-      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
     >
-      <div
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
         onClick={(e) => e.stopPropagation()}
-        style={{
-          backgroundColor: "white",
-          borderRadius: "0.75rem",
-          width: "100%",
-          maxWidth: "600px",
-          maxHeight: "90vh",
-          overflow: "auto",
-          padding: "1.5rem",
-        }}
+        className="relative bg-white rounded-xl w-full max-w-[600px] max-h-[90vh] overflow-auto p-6 shadow-2xl"
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#111827", margin: 0 }}>
-            Importer des contacts (CSV)
-          </h2>
-          <button onClick={onClose} className="btn-ghost" style={{ padding: "0.25rem" }}>
-            <X size={20} />
-          </button>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-semibold text-slate-900 m-0">Importer des contacts (CSV)</h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X size={20} /></button>
         </div>
 
-        <div style={{ marginBottom: "1rem" }}>
-          <p style={{ fontSize: "0.875rem", color: "#6b7280", marginBottom: "0.75rem" }}>
+        <div className="mb-4">
+          <p className="text-sm text-slate-500 mb-3">
             Colonnes attendues : <strong>prenom, nom_famille, telephone, email, entreprise, ville, tags, notes</strong>
           </p>
           <div
-            style={{
-              border: "2px dashed #d1d5db",
-              borderRadius: "0.5rem",
-              padding: "2rem",
-              textAlign: "center",
-              cursor: "pointer",
-              backgroundColor: "#f9fafb",
-            }}
+            className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors"
             onClick={() => fileRef.current?.click()}
           >
-            <FileSpreadsheet size={32} style={{ color: "#9ca3af", margin: "0 auto 0.5rem" }} />
-            <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>
+            <FileSpreadsheet size={32} className="text-slate-400 mx-auto mb-2" />
+            <p className="text-sm text-slate-500">
               {fileName || "Cliquez pour selectionner un fichier CSV"}
             </p>
             <input
@@ -329,18 +293,17 @@ function ImportCSVModal({
               type="file"
               accept=".csv"
               onChange={handleFileSelect}
-              style={{ display: "none" }}
+              className="hidden"
             />
           </div>
         </div>
 
-        {/* Preview */}
         {preview.length > 0 && (
-          <div style={{ marginBottom: "1.5rem" }}>
-            <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "#374151", marginBottom: "0.5rem" }}>
+          <div className="mb-6">
+            <p className="text-sm font-medium text-slate-700 mb-2">
               Apercu ({preview.length} premieres lignes) :
             </p>
-            <div className="table-container" style={{ maxHeight: "200px", overflow: "auto" }}>
+            <div className="table-container max-h-[200px] overflow-auto">
               <table>
                 <thead>
                   <tr>
@@ -363,19 +326,18 @@ function ImportCSVModal({
           </div>
         )}
 
-        <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+        <div className="flex gap-3 justify-end">
           <button type="button" onClick={onClose} className="btn-secondary">Annuler</button>
           <button
             onClick={handleImport}
-            className="btn-primary"
+            className="btn-primary flex items-center gap-2"
             disabled={importing || !fileName}
-            style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
           >
             <Upload size={16} />
             {importing ? "Importation..." : "Importer"}
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -434,15 +396,27 @@ function EditContactModal({
   return (
     <div
       onClick={onClose}
-      style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "1rem" }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
     >
-      <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "white", borderRadius: "0.75rem", width: "100%", maxWidth: "500px", maxHeight: "90vh", overflow: "auto", padding: "1.5rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#111827", margin: 0 }}>Modifier le contact</h2>
-          <button onClick={onClose} className="btn-ghost" style={{ padding: "0.25rem" }}><X size={20} /></button>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative bg-white rounded-xl w-full max-w-[500px] max-h-[90vh] overflow-auto p-6 shadow-2xl"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-semibold text-slate-900 m-0">Modifier le contact</h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X size={20} /></button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="label">Prenom *</label>
               <input className="input-field" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
@@ -452,7 +426,7 @@ function EditContactModal({
               <input className="input-field" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="label">Telephone</label>
               <input className="input-field" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+33 6 12 34 56 78" />
@@ -462,7 +436,7 @@ function EditContactModal({
               <input className="input-field" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="label">Entreprise</label>
               <input className="input-field" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
@@ -472,22 +446,22 @@ function EditContactModal({
               <input className="input-field" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
             </div>
           </div>
-          <div style={{ marginBottom: "1rem" }}>
+          <div className="mb-4">
             <label className="label">Tags (separes par des virgules)</label>
             <input className="input-field" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="vip, prospect, client" />
           </div>
-          <div style={{ marginBottom: "1.5rem" }}>
+          <div className="mb-6">
             <label className="label">Notes</label>
-            <textarea className="input-field" rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} style={{ resize: "vertical" }} />
+            <textarea className="input-field resize-y" rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </div>
-          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+          <div className="flex gap-3 justify-end">
             <button type="button" onClick={onClose} className="btn-secondary">Annuler</button>
             <button type="submit" className="btn-primary" disabled={saving}>
               {saving ? "Enregistrement..." : "Enregistrer"}
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -508,9 +482,12 @@ function CallContactModal({
   useEffect(() => {
     (async () => {
       const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoadingAgents(false); return; }
       const { data } = await supabase
         .from("agents")
         .select("id, name, elevenlabs_agent_id")
+        .eq("user_id", user.id)
         .not("elevenlabs_agent_id", "is", null)
         .order("name");
       if (data) setAgents(data);
@@ -547,27 +524,39 @@ function CallContactModal({
   return (
     <div
       onClick={onClose}
-      style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "1rem" }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
     >
-      <div onClick={(e) => e.stopPropagation()} style={{ backgroundColor: "white", borderRadius: "0.75rem", width: "100%", maxWidth: "400px", padding: "1.5rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-          <h2 style={{ fontSize: "1.125rem", fontWeight: 600, color: "#111827", margin: 0 }}>Appeler {contact.first_name}</h2>
-          <button onClick={onClose} className="btn-ghost" style={{ padding: "0.25rem" }}><X size={20} /></button>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative bg-white rounded-xl w-full max-w-[400px] p-6 shadow-2xl"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-semibold text-slate-900 m-0">Appeler {contact.first_name}</h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X size={20} /></button>
         </div>
 
-        <div style={{ marginBottom: "1rem" }}>
-          <div style={{ fontSize: "0.875rem", color: "#6b7280", marginBottom: "0.25rem" }}>Numero</div>
-          <div style={{ fontWeight: 500, color: "#111827" }}>{contact.phone || "Aucun numero"}</div>
+        <div className="mb-4">
+          <div className="text-sm text-slate-500 mb-1">Numero</div>
+          <div className="font-medium text-slate-900">{contact.phone || "Aucun numero"}</div>
         </div>
 
-        <div style={{ marginBottom: "1.5rem" }}>
+        <div className="mb-6">
           <label className="label">Agent</label>
           {loadingAgents ? (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#9ca3af", fontSize: "0.875rem" }}>
-              <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Chargement...
+            <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <Loader2 size={14} className="animate-spin" /> Chargement...
             </div>
           ) : agents.length === 0 ? (
-            <p style={{ color: "#ef4444", fontSize: "0.875rem" }}>Aucun agent disponible. Creez d&apos;abord un agent.</p>
+            <p className="text-red-500 text-sm">Aucun agent disponible. Creez d&apos;abord un agent.</p>
           ) : (
             <select
               className="input-field"
@@ -582,19 +571,18 @@ function CallContactModal({
           )}
         </div>
 
-        <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+        <div className="flex gap-3 justify-end">
           <button onClick={onClose} className="btn-secondary">Annuler</button>
           <button
             onClick={handleCall}
-            className="btn-primary"
+            className="btn-primary flex items-center gap-2"
             disabled={calling || !selectedAgentId || !contact.phone}
-            style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
           >
-            {calling ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Phone size={14} />}
+            {calling ? <Loader2 size={14} className="animate-spin" /> : <Phone size={14} />}
             {calling ? "Appel en cours..." : "Appeler"}
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -620,9 +608,13 @@ export default function ContactsPage() {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+
       let query = supabase
         .from("contacts")
         .select("*", { count: "exact" })
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -667,47 +659,31 @@ export default function ContactsPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#111827", margin: 0 }}>
-            Contacts
-          </h1>
-          <p style={{ color: "#6b7280", marginTop: "0.25rem", fontSize: "0.875rem" }}>
-            Gerez votre base de contacts
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900 m-0">Contacts</h1>
+          <p className="text-sm text-slate-500 mt-1">Gerez votre base de contacts</p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem" }}>
-          <button onClick={fetchContacts} className="btn-secondary" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <RefreshCw size={16} />
-            Actualiser
+        <div className="flex gap-3">
+          <button onClick={fetchContacts} className="btn-secondary flex items-center gap-2">
+            <RefreshCw size={16} /> Actualiser
           </button>
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="btn-secondary"
-            style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-          >
-            <Upload size={16} />
-            Importer CSV
+          <button onClick={() => setShowImportModal(true)} className="btn-secondary flex items-center gap-2">
+            <Upload size={16} /> Importer CSV
           </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn-primary"
-            style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-          >
-            <Plus size={16} />
-            Nouveau contact
+          <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2">
+            <Plus size={16} /> Nouveau contact
           </button>
         </div>
       </div>
 
       {/* Search */}
-      <div className="card" style={{ marginBottom: "1.5rem" }}>
-        <div style={{ position: "relative" }}>
-          <Search size={16} style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: "#9ca3af" }} />
+      <div className="card mb-6">
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            className="input-field"
-            style={{ paddingLeft: "2.25rem" }}
+            className="input-field pl-9"
             placeholder="Rechercher par nom, telephone, email ou entreprise..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -717,15 +693,8 @@ export default function ContactsPage() {
 
       {/* Table */}
       {loading ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: "5rem 0" }}>
-          <div style={{
-            width: "2rem",
-            height: "2rem",
-            border: "4px solid #FFEDD5",
-            borderTopColor: "#F97316",
-            borderRadius: "50%",
-            animation: "spin 1s linear infinite",
-          }} />
+        <div className="flex justify-center py-20">
+          <div className="spinner" />
         </div>
       ) : contacts.length === 0 ? (
         <div className="card">
@@ -756,7 +725,7 @@ export default function ContactsPage() {
               <tbody>
                 {contacts.map((contact) => (
                   <tr key={contact.id}>
-                    <td style={{ fontWeight: 500, color: "#111827" }}>
+                    <td className="font-medium text-slate-900">
                       {contact.first_name} {contact.last_name}
                     </td>
                     <td>{contact.phone || "—"}</td>
@@ -764,12 +733,10 @@ export default function ContactsPage() {
                     <td>{contact.company || "—"}</td>
                     <td>{contact.city || "—"}</td>
                     <td>
-                      <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
+                      <div className="flex gap-1 flex-wrap">
                         {contact.tags?.length > 0
                           ? contact.tags.map((tag) => (
-                              <span key={tag} className="badge badge-info" style={{ fontSize: "0.6875rem" }}>
-                                {tag}
-                              </span>
+                              <span key={tag} className="badge badge-info text-[0.6875rem]">{tag}</span>
                             ))
                           : "—"}
                       </div>
@@ -780,31 +747,16 @@ export default function ContactsPage() {
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <div className="flex gap-2">
                         {contact.phone && (
-                          <button
-                            className="btn-ghost"
-                            style={{ padding: "0.25rem", color: "#2563EB" }}
-                            title="Appeler"
-                            onClick={() => setCallingContact(contact)}
-                          >
+                          <button className="btn-ghost p-1 text-blue-600" title="Appeler" onClick={() => setCallingContact(contact)}>
                             <Phone size={14} />
                           </button>
                         )}
-                        <button
-                          className="btn-ghost"
-                          style={{ padding: "0.25rem", color: "#6b7280" }}
-                          title="Modifier"
-                          onClick={() => setEditingContact(contact)}
-                        >
+                        <button className="btn-ghost p-1 text-slate-500" title="Modifier" onClick={() => setEditingContact(contact)}>
                           <Edit2 size={14} />
                         </button>
-                        <button
-                          className="btn-ghost"
-                          style={{ padding: "0.25rem", color: "#ef4444" }}
-                          title="Supprimer"
-                          onClick={() => handleDelete(contact.id)}
-                        >
+                        <button className="btn-ghost p-1 text-red-500" title="Supprimer" onClick={() => handleDelete(contact.id)}>
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -817,16 +769,12 @@ export default function ContactsPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "1rem" }}>
-              <span style={{ fontSize: "0.8125rem", color: "#6b7280" }}>
+            <div className="flex items-center justify-between mt-4">
+              <span className="text-[0.8125rem] text-slate-500">
                 {totalCount} contact{totalCount > 1 ? "s" : ""} au total
               </span>
               <div className="pagination">
-                <button
-                  className="pagination-btn"
-                  disabled={page <= 1}
-                  onClick={() => setPage(page - 1)}
-                >
+                <button className="pagination-btn" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                   <ChevronLeft size={14} />
                 </button>
                 {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
@@ -850,11 +798,7 @@ export default function ContactsPage() {
                     </button>
                   );
                 })}
-                <button
-                  className="pagination-btn"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(page + 1)}
-                >
+                <button className="pagination-btn" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
                   <ChevronRight size={14} />
                 </button>
               </div>
@@ -864,40 +808,39 @@ export default function ContactsPage() {
       )}
 
       {/* Modals */}
-      {showAddModal && (
-        <AddContactModal
-          onClose={() => setShowAddModal(false)}
-          onCreated={() => {
-            setShowAddModal(false);
-            fetchContacts();
-          }}
-        />
-      )}
-      {showImportModal && (
-        <ImportCSVModal
-          onClose={() => setShowImportModal(false)}
-          onImported={() => {
-            setShowImportModal(false);
-            fetchContacts();
-          }}
-        />
-      )}
-      {editingContact && (
-        <EditContactModal
-          contact={editingContact}
-          onClose={() => setEditingContact(null)}
-          onUpdated={() => {
-            setEditingContact(null);
-            fetchContacts();
-          }}
-        />
-      )}
-      {callingContact && (
-        <CallContactModal
-          contact={callingContact}
-          onClose={() => setCallingContact(null)}
-        />
-      )}
+      <AnimatePresence>
+        {showAddModal && (
+          <AddContactModal
+            onClose={() => setShowAddModal(false)}
+            onCreated={() => { setShowAddModal(false); fetchContacts(); }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showImportModal && (
+          <ImportCSVModal
+            onClose={() => setShowImportModal(false)}
+            onImported={() => { setShowImportModal(false); fetchContacts(); }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {editingContact && (
+          <EditContactModal
+            contact={editingContact}
+            onClose={() => setEditingContact(null)}
+            onUpdated={() => { setEditingContact(null); fetchContacts(); }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {callingContact && (
+          <CallContactModal
+            contact={callingContact}
+            onClose={() => setCallingContact(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

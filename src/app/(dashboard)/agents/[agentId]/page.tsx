@@ -47,15 +47,8 @@ export default function AgentDetailPage() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", padding: "5rem 0" }}>
-        <div style={{
-          width: "2rem",
-          height: "2rem",
-          border: "4px solid #FFEDD5",
-          borderTopColor: "#F97316",
-          borderRadius: "50%",
-          animation: "spin 1s linear infinite",
-        }} />
+      <div className="flex justify-center py-20">
+        <div className="spinner" />
       </div>
     );
   }
@@ -81,66 +74,58 @@ export default function AgentDetailPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
+      <div className="flex items-center justify-between mb-6">
         <Link
           href="/agents"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            fontSize: "0.875rem",
-            color: "#6b7280",
-            textDecoration: "none",
-          }}
+          className="inline-flex items-center gap-2 text-sm text-slate-500 no-underline hover:text-slate-900 transition-colors"
         >
-          <ArrowLeft style={{ height: "1rem", width: "1rem" }} />
+          <ArrowLeft className="h-4 w-4" />
           Retour aux agents
         </Link>
         <button
           onClick={() => setShowEditModal(true)}
-          className="btn-secondary"
-          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+          className="btn-secondary flex items-center gap-2"
         >
           <Edit2 size={16} />
           Modifier
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "2rem" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "2rem" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      <div className="grid grid-cols-1 gap-8">
+        <div className="grid grid-cols-[1fr_2fr] gap-8">
+          <div className="flex flex-col gap-6">
             <div className="card">
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-                <div style={{ backgroundColor: "#FFF7ED", padding: "0.75rem", borderRadius: "0.5rem" }}>
-                  <Bot style={{ height: "2rem", width: "2rem", color: "#F97316" }} />
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-slate-100 p-3 rounded-lg">
+                  <Bot className="h-8 w-8 text-slate-900" />
                 </div>
                 <div>
-                  <h1 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#111827", margin: 0 }}>{agent.name}</h1>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.875rem", color: "#6b7280" }}>
-                    <Globe style={{ height: "0.875rem", width: "0.875rem" }} />
+                  <h1 className="text-xl font-bold text-slate-900 m-0">{agent.name}</h1>
+                  <div className="flex items-center gap-1 text-sm text-slate-500">
+                    <Globe className="h-3.5 w-3.5" />
                     <span>{config?.agent?.language?.toUpperCase() || "?"}</span>
                   </div>
                 </div>
               </div>
 
               {config?.agent?.first_message && (
-                <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: "1rem" }}>
-                  <h3 style={{ fontSize: "0.75rem", fontWeight: 500, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
+                <div className="border-t border-slate-100 pt-4">
+                  <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
                     Premier message
                   </h3>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontSize: "0.875rem", color: "#374151" }}>
-                    <MessageSquare style={{ height: "1rem", width: "1rem", marginTop: "0.125rem", flexShrink: 0, color: "#9ca3af" }} />
-                    <p style={{ margin: 0 }}>{config.agent.first_message}</p>
+                  <div className="flex items-start gap-2 text-sm text-slate-700">
+                    <MessageSquare className="h-4 w-4 mt-0.5 shrink-0 text-slate-400" />
+                    <p className="m-0">{config.agent.first_message}</p>
                   </div>
                 </div>
               )}
 
               {config?.agent?.prompt?.prompt && (
-                <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: "1rem", marginTop: "1rem" }}>
-                  <h3 style={{ fontSize: "0.75rem", fontWeight: 500, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
+                <div className="border-t border-slate-100 pt-4 mt-4">
+                  <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
                     Prompt systeme
                   </h3>
-                  <p style={{ fontSize: "0.875rem", color: "#4b5563", whiteSpace: "pre-wrap", margin: 0 }}>
+                  <p className="text-sm text-slate-600 whitespace-pre-wrap m-0">
                     {config.agent.prompt.prompt}
                   </p>
                 </div>
@@ -148,23 +133,23 @@ export default function AgentDetailPage() {
             </div>
 
             <div className="card">
-              <h3 style={{ fontSize: "0.75rem", fontWeight: 500, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" }}>
+              <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-3">
                 Configuration technique
               </h3>
-              <dl style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.875rem", margin: 0 }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <dt style={{ color: "#6b7280" }}>Agent ID</dt>
-                  <dd style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "#374151", margin: 0 }}>
+              <dl className="flex flex-col gap-2 text-sm m-0">
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">Agent ID</dt>
+                  <dd className="font-mono text-xs text-slate-700 m-0">
                     {agent.agent_id.slice(0, 16)}...
                   </dd>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <dt style={{ color: "#6b7280" }}>Modele LLM</dt>
-                  <dd style={{ margin: 0 }}>{config?.agent?.prompt?.llm || "?"}</dd>
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">Modele LLM</dt>
+                  <dd className="m-0">{config?.agent?.prompt?.llm || "?"}</dd>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <dt style={{ color: "#6b7280" }}>Voix ID</dt>
-                  <dd style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "#374151", margin: 0 }}>
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">Voix ID</dt>
+                  <dd className="font-mono text-xs text-slate-700 m-0">
                     {config?.tts?.voice_id ? config.tts.voice_id.slice(0, 16) + "..." : "?"}
                   </dd>
                 </div>
@@ -173,23 +158,15 @@ export default function AgentDetailPage() {
 
             {/* Knowledge Base */}
             <div className="card">
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-                <h3 style={{ fontSize: "0.75rem", fontWeight: 500, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", margin: 0 }}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wide m-0">
                   Base de connaissances
                 </h3>
                 <label
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.25rem",
-                    fontSize: "0.75rem",
-                    color: "#F97316",
-                    cursor: kbUploading ? "wait" : "pointer",
-                    fontWeight: 500,
-                  }}
+                  className={`inline-flex items-center gap-1 text-xs text-slate-900 font-medium ${kbUploading ? "cursor-wait" : "cursor-pointer hover:text-slate-600"}`}
                 >
                   {kbUploading ? (
-                    <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+                    <Loader2 size={12} className="animate-spin" />
                   ) : (
                     <Upload size={12} />
                   )}
@@ -198,7 +175,7 @@ export default function AgentDetailPage() {
                     type="file"
                     accept=".pdf,.txt"
                     multiple
-                    style={{ display: "none" }}
+                    className="hidden"
                     disabled={kbUploading}
                     onChange={async (e) => {
                       const files = Array.from(e.target.files || []);
@@ -220,41 +197,30 @@ export default function AgentDetailPage() {
                 </label>
               </div>
               {kbItems.length === 0 ? (
-                <p style={{ fontSize: "0.8125rem", color: "#9ca3af", margin: 0 }}>
+                <p className="text-[0.8125rem] text-slate-400 m-0">
                   Aucun document ajoute
                 </p>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                <div className="flex flex-col gap-1.5">
                   {kbItems.map((item) => (
                     <div
                       key={item.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        padding: "0.375rem 0.5rem",
-                        backgroundColor: "#f9fafb",
-                        borderRadius: "0.375rem",
-                        fontSize: "0.8125rem",
-                      }}
+                      className="flex items-center justify-between px-2 py-1.5 bg-slate-50 rounded-md text-[0.8125rem]"
                     >
-                      <span style={{ display: "flex", alignItems: "center", gap: "0.375rem", overflow: "hidden" }}>
+                      <span className="flex items-center gap-1.5 overflow-hidden">
                         {item.file_type === "url" ? (
-                          <Link2 size={14} style={{ color: "#F97316", flexShrink: 0 }} />
+                          <Link2 size={14} className="text-slate-900 shrink-0" />
                         ) : (
-                          <FileText size={14} style={{ color: "#F97316", flexShrink: 0 }} />
+                          <FileText size={14} className="text-slate-900 shrink-0" />
                         )}
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <span className="overflow-hidden text-ellipsis whitespace-nowrap">
                           {item.file_name}
                         </span>
                         <span
+                          className="text-[0.625rem] px-1.5 py-0.5 rounded-full shrink-0"
                           style={{
-                            fontSize: "0.625rem",
-                            padding: "0.125rem 0.375rem",
-                            borderRadius: "9999px",
                             backgroundColor: item.status === "ready" ? "#dcfce7" : item.status === "failed" ? "#fef2f2" : "#fef3c7",
                             color: item.status === "ready" ? "#15803d" : item.status === "failed" ? "#dc2626" : "#a16207",
-                            flexShrink: 0,
                           }}
                         >
                           {item.status === "ready" ? "Pret" : item.status === "failed" ? "Erreur" : "En cours"}
@@ -271,7 +237,7 @@ export default function AgentDetailPage() {
                             toast.error("Erreur suppression");
                           }
                         }}
-                        style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: "0.125rem", flexShrink: 0 }}
+                        className="text-red-500 bg-transparent border-none cursor-pointer p-0.5 shrink-0 hover:text-red-700"
                       >
                         <Trash2 size={14} />
                       </button>

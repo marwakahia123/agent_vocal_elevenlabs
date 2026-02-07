@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import {
   Phone,
   PhoneIncoming,
-  PhoneOutgoing,
   Clock,
   Users,
   Bot,
@@ -25,7 +24,7 @@ interface Stats {
   avgDuration: number;
 }
 
-const COLORS = ["#F97316", "#3B82F6", "#10B981", "#8B5CF6", "#EF4444"];
+const COLORS = ["#0f172a", "#3B82F6", "#10B981", "#8B5CF6", "#EF4444"];
 
 export default function DashboardPage() {
   const { profile } = useAuth();
@@ -45,22 +44,24 @@ export default function DashboardPage() {
     async function fetchStats() {
       try {
         const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-        // Fetch agents count
         const { count: agentsCount } = await supabase
           .from("agents")
-          .select("*", { count: "exact", head: true });
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id);
 
-        // Fetch conversations
         const { data: conversations } = await supabase
           .from("conversations")
           .select("started_at, duration_seconds, call_type, status")
+          .eq("user_id", user.id)
           .order("started_at", { ascending: false });
 
-        // Fetch contacts count
         const { count: contactsCount } = await supabase
           .from("contacts")
-          .select("*", { count: "exact", head: true });
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id);
 
         const convs = conversations || [];
         const totalCalls = convs.length;
@@ -84,7 +85,6 @@ export default function DashboardPage() {
           avgDuration: Math.round(avgDuration),
         });
 
-        // Calls by day (last 7 days)
         const last7Days = Array.from({ length: 7 }, (_, i) => {
           const d = new Date();
           d.setDate(d.getDate() - (6 - i));
@@ -98,7 +98,6 @@ export default function DashboardPage() {
           }))
         );
 
-        // Calls by type
         const typeMap: Record<string, number> = {};
         convs.forEach((c) => {
           const t = c.call_type || "test";
@@ -128,21 +127,14 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", padding: "5rem 0" }}>
-        <div style={{
-          width: "2rem",
-          height: "2rem",
-          border: "4px solid #FFEDD5",
-          borderTopColor: "#F97316",
-          borderRadius: "50%",
-          animation: "spin 1s linear infinite",
-        }} />
+      <div className="flex justify-center py-20">
+        <div className="spinner" />
       </div>
     );
   }
 
   const statCards = [
-    { label: "Appels total", value: stats.totalCalls, icon: <Phone size={20} />, color: "#F97316", bg: "#FFF7ED" },
+    { label: "Appels total", value: stats.totalCalls, icon: <Phone size={20} />, color: "#0f172a", bg: "#f1f5f9" },
     { label: "Appels aujourd'hui", value: stats.callsToday, icon: <PhoneIncoming size={20} />, color: "#3B82F6", bg: "#EFF6FF" },
     { label: "Minutes utilisees", value: stats.totalMinutes, icon: <Clock size={20} />, color: "#10B981", bg: "#ECFDF5" },
     { label: "Agents actifs", value: stats.activeAgents, icon: <Bot size={20} />, color: "#8B5CF6", bg: "#F5F3FF" },
@@ -152,25 +144,20 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: "1.5rem" }}>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#111827", margin: 0 }}>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-slate-900 m-0">
           Tableau de bord
         </h1>
-        <p style={{ color: "#6b7280", fontSize: "0.875rem", marginTop: "0.25rem" }}>
+        <p className="text-sm text-slate-500 mt-1">
           Bienvenue{profile?.full_name ? `, ${profile.full_name}` : ""} ! Voici un apercu de votre activite.
         </p>
       </div>
 
       {/* Stats grid */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-        gap: "1rem",
-        marginBottom: "1.5rem",
-      }}>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 mb-6">
         {statCards.map((card) => (
           <div key={card.label} className="stat-card">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div className="flex items-center justify-between">
               <div>
                 <div className="stat-card-value">{card.value}</div>
                 <div className="stat-card-label">{card.label}</div>
@@ -184,32 +171,30 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem" }}>
-        {/* Calls by day */}
+      <div className="grid grid-cols-[2fr_1fr] gap-6">
         <div className="card">
-          <h2 style={{ fontSize: "1rem", fontWeight: 600, color: "#111827", marginBottom: "1rem" }}>
+          <h2 className="text-base font-semibold text-slate-900 mb-4">
             Activite des appels (7 derniers jours)
           </h2>
           {callsByDay.length > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={callsByDay}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="date" fontSize={12} tickLine={false} />
                 <YAxis fontSize={12} tickLine={false} allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="appels" fill="#F97316" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="appels" fill="#0f172a" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="empty-state" style={{ padding: "2rem" }}>
+            <div className="empty-state p-8">
               <p className="empty-state-desc">Aucun appel pour le moment</p>
             </div>
           )}
         </div>
 
-        {/* Calls by type */}
         <div className="card">
-          <h2 style={{ fontSize: "1rem", fontWeight: 600, color: "#111827", marginBottom: "1rem" }}>
+          <h2 className="text-base font-semibold text-slate-900 mb-4">
             Repartition par type
           </h2>
           {callsByType.length > 0 ? (
@@ -233,8 +218,8 @@ export default function DashboardPage() {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="empty-state" style={{ padding: "2rem" }}>
-              <Star size={24} style={{ color: "#d1d5db", marginBottom: "0.5rem" }} />
+            <div className="empty-state p-8">
+              <Star size={24} className="text-slate-300 mb-2" />
               <p className="empty-state-desc">Pas encore de donnees</p>
             </div>
           )}
@@ -243,28 +228,28 @@ export default function DashboardPage() {
 
       {/* Usage bar */}
       {profile && (
-        <div className="card" style={{ marginTop: "1.5rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-            <h2 style={{ fontSize: "1rem", fontWeight: 600, color: "#111827", margin: 0 }}>
+        <div className="card mt-6">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-base font-semibold text-slate-900 m-0">
               Utilisation du forfait
             </h2>
             <span className="badge badge-info">
               {profile.plan === "free" ? "Gratuit" : profile.plan}
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ height: "8px", backgroundColor: "#f3f4f6", borderRadius: "4px", overflow: "hidden" }}>
-                <div style={{
-                  height: "100%",
-                  width: `${Math.min((profile.minutes_used / profile.minutes_limit) * 100, 100)}%`,
-                  backgroundColor: profile.minutes_used / profile.minutes_limit > 0.9 ? "#EF4444" : "#F97316",
-                  borderRadius: "4px",
-                  transition: "width 0.3s",
-                }} />
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <div className="h-2 bg-slate-100 rounded overflow-hidden">
+                <div
+                  className="h-full rounded transition-all duration-300"
+                  style={{
+                    width: `${Math.min((profile.minutes_used / profile.minutes_limit) * 100, 100)}%`,
+                    backgroundColor: profile.minutes_used / profile.minutes_limit > 0.9 ? "#EF4444" : "#0f172a",
+                  }}
+                />
               </div>
             </div>
-            <span style={{ fontSize: "0.875rem", color: "#6b7280", whiteSpace: "nowrap" }}>
+            <span className="text-sm text-slate-500 whitespace-nowrap">
               {profile.minutes_used} / {profile.minutes_limit} min
             </span>
           </div>

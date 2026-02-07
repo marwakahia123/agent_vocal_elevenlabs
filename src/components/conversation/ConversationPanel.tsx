@@ -50,11 +50,9 @@ export default function ConversationPanel({ agentId }: Props) {
     onDisconnect: (details?: unknown) => {
       setIsConnected(false);
       setMode("idle");
-      // Log la raison de la deconnexion
       const detailStr = details ? JSON.stringify(details) : "aucun detail";
       addDebug(`Deconnecte: ${detailStr}`);
       console.error("[ConvDebug] Disconnect details:", details);
-      // Terminer la conversation en base
       if (conversationIdRef.current) {
         endConvDb(conversationIdRef.current).catch(() => {});
         conversationIdRef.current = null;
@@ -72,7 +70,6 @@ export default function ConversationPanel({ agentId }: Props) {
           timestamp: new Date(),
         },
       ]);
-      // Sauvegarder le message en base
       if (conversationIdRef.current) {
         saveMessage(conversationIdRef.current, source, props.message).catch(() => {});
       }
@@ -102,7 +99,6 @@ export default function ConversationPanel({ agentId }: Props) {
     setConnecting(true);
     setTranscript([]);
 
-    // 1. Creer la conversation en base
     try {
       const convData = await startConvDb(agentId);
       conversationIdRef.current = convData.id;
@@ -110,7 +106,6 @@ export default function ConversationPanel({ agentId }: Props) {
       // Si la sauvegarde echoue, on continue quand meme
     }
 
-    // 2. Obtenir le signed URL et demarrer la session
     try {
       const data = await getSignedUrl(agentId);
       if (data.signed_url) {
@@ -122,7 +117,6 @@ export default function ConversationPanel({ agentId }: Props) {
       addDebug(`Signed URL echoue: ${signedUrlError}`);
     }
 
-    // 3. Fallback: connexion directe (agent public)
     try {
       addDebug("Fallback: connexion directe...");
       await conversation.startSession({ agentId, connectionType: "websocket" });
@@ -138,48 +132,26 @@ export default function ConversationPanel({ agentId }: Props) {
   }, [conversation]);
 
   return (
-    <div className="card" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
-        <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#111827", margin: 0 }}>
+    <div className="card flex flex-col h-full">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-bold text-slate-900 m-0">
           Tester l&apos;agent
         </h2>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <div className="flex items-center gap-2">
           {/* Status indicator */}
-          <span style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.375rem",
-            fontSize: "0.75rem",
-            fontWeight: 500,
-            padding: "0.25rem 0.625rem",
-            borderRadius: "9999px",
-            backgroundColor: isConnected ? "#dcfce7" : "#f3f4f6",
-            color: isConnected ? "#15803d" : "#6b7280",
-          }}>
-            <span style={{
-              height: "0.5rem",
-              width: "0.5rem",
-              borderRadius: "50%",
-              backgroundColor: isConnected ? "#22c55e" : "#9ca3af",
-              animation: isConnected ? "pulse 2s infinite" : "none",
-            }} />
+          <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
+            isConnected ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+          }`}>
+            <span className={`h-2 w-2 rounded-full ${
+              isConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
+            }`} />
             {isConnected ? "Connecte" : "Deconnecte"}
           </span>
 
           {/* Speaking indicator */}
           {conversation.isSpeaking && (
-            <span style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.25rem",
-              fontSize: "0.75rem",
-              fontWeight: 500,
-              padding: "0.25rem 0.625rem",
-              borderRadius: "9999px",
-              backgroundColor: "#FFEDD5",
-              color: "#EA580C",
-            }}>
-              <Volume2 style={{ height: "0.75rem", width: "0.75rem" }} />
+            <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+              <Volume2 className="h-3 w-3" />
               L&apos;agent parle...
             </span>
           )}
@@ -187,59 +159,27 @@ export default function ConversationPanel({ agentId }: Props) {
       </div>
 
       {/* Transcript area */}
-      <div style={{
-        flex: 1,
-        minHeight: "300px",
-        maxHeight: "500px",
-        overflowY: "auto",
-        backgroundColor: "#f9fafb",
-        borderRadius: "0.5rem",
-        padding: "1rem",
-        marginBottom: "1.5rem",
-      }}>
+      <div className="flex-1 min-h-[300px] max-h-[500px] overflow-y-auto bg-slate-50 rounded-lg p-4 mb-6">
         {transcript.length === 0 ? (
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100%",
-            color: "#9ca3af",
-            fontSize: "0.875rem",
-          }}>
+          <div className="flex items-center justify-center h-full text-slate-400 text-sm">
             {isConnected
               ? "En attente... Parlez a votre agent !"
               : "Cliquez sur 'Demarrer' pour commencer la conversation"}
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <div className="flex flex-col gap-3">
             {transcript.map((entry, i) => (
               <div
                 key={i}
-                style={{
-                  display: "flex",
-                  justifyContent: entry.source === "user" ? "flex-end" : "flex-start",
-                }}
+                className={`flex ${entry.source === "user" ? "justify-end" : "justify-start"}`}
               >
-                <div style={{
-                  maxWidth: "80%",
-                  borderRadius: "1rem",
-                  padding: "0.5rem 1rem",
-                  fontSize: "0.875rem",
-                  ...(entry.source === "user"
-                    ? {
-                        backgroundColor: "#F97316",
-                        color: "white",
-                        borderBottomRightRadius: "0.25rem",
-                      }
-                    : {
-                        backgroundColor: "white",
-                        color: "#1f2937",
-                        border: "1px solid #e5e7eb",
-                        borderBottomLeftRadius: "0.25rem",
-                      }),
-                }}>
-                  <p style={{ margin: 0 }}>{entry.message}</p>
-                  <span style={{ fontSize: "0.625rem", opacity: 0.6, display: "block", marginTop: "0.25rem" }}>
+                <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
+                  entry.source === "user"
+                    ? "bg-slate-900 text-white rounded-br-sm"
+                    : "bg-white text-slate-800 border border-slate-200 rounded-bl-sm"
+                }`}>
+                  <p className="m-0">{entry.message}</p>
+                  <span className="text-[0.625rem] opacity-60 block mt-1">
                     {entry.timestamp.toLocaleTimeString("fr-FR")}
                   </span>
                 </div>
@@ -251,29 +191,21 @@ export default function ConversationPanel({ agentId }: Props) {
       </div>
 
       {/* Controls */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "1rem" }}>
+      <div className="flex items-center justify-center gap-4">
         {!isConnected ? (
           <button
             onClick={handleStartConversation}
             disabled={connecting}
-            className="btn-primary"
-            style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem 2rem", fontSize: "1rem" }}
+            className="btn-primary flex items-center gap-2 px-8 py-3 text-base"
           >
             {connecting ? (
               <>
-                <div style={{
-                  width: "1.25rem",
-                  height: "1.25rem",
-                  border: "2px solid rgba(255,255,255,0.3)",
-                  borderTopColor: "white",
-                  borderRadius: "50%",
-                  animation: "spin 1s linear infinite",
-                }} />
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Connexion...
               </>
             ) : (
               <>
-                <Phone style={{ height: "1.25rem", width: "1.25rem" }} />
+                <Phone className="h-5 w-5" />
                 Demarrer la conversation
               </>
             )}
@@ -281,10 +213,9 @@ export default function ConversationPanel({ agentId }: Props) {
         ) : (
           <button
             onClick={handleStopConversation}
-            className="btn-danger"
-            style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem 2rem", fontSize: "1rem" }}
+            className="btn-danger flex items-center gap-2 px-8 py-3 text-base"
           >
-            <PhoneOff style={{ height: "1.25rem", width: "1.25rem" }} />
+            <PhoneOff className="h-5 w-5" />
             Terminer
           </button>
         )}
@@ -292,22 +223,25 @@ export default function ConversationPanel({ agentId }: Props) {
 
       {/* Mode indicator + VAD */}
       {isConnected && (
-        <div style={{ textAlign: "center", marginTop: "0.5rem" }}>
-          <p style={{ fontSize: "0.75rem", color: mode === "listening" ? "#15803d" : mode === "speaking" ? "#EA580C" : "#6b7280", margin: 0 }}>
+        <div className="text-center mt-2">
+          <p className={`text-xs m-0 ${
+            mode === "listening" ? "text-emerald-600" : mode === "speaking" ? "text-slate-700" : "text-slate-500"
+          }`}>
             {mode === "listening" ? "En ecoute..." : mode === "speaking" ? "Agent parle..." : `Mode: ${mode}`}
           </p>
           {mode === "listening" && (
-            <div style={{ marginTop: "0.375rem" }}>
-              <div style={{ fontSize: "0.625rem", color: "#6b7280", marginBottom: "0.125rem" }}>
+            <div className="mt-1.5">
+              <div className="text-[0.625rem] text-slate-500 mb-0.5">
                 VAD: {vadScore.toFixed(2)} | Vol: {(conversation.getInputVolume?.() ?? 0).toFixed(2)}
               </div>
-              <div style={{ height: "4px", backgroundColor: "#e5e7eb", borderRadius: "2px", overflow: "hidden" }}>
-                <div style={{
-                  height: "100%",
-                  width: `${Math.min(vadScore * 100, 100)}%`,
-                  backgroundColor: vadScore > 0.5 ? "#22c55e" : vadScore > 0.1 ? "#eab308" : "#ef4444",
-                  transition: "width 0.1s",
-                }} />
+              <div className="h-1 bg-slate-200 rounded-sm overflow-hidden">
+                <div
+                  className="h-full transition-[width] duration-100"
+                  style={{
+                    width: `${Math.min(vadScore * 100, 100)}%`,
+                    backgroundColor: vadScore > 0.5 ? "#22c55e" : vadScore > 0.1 ? "#eab308" : "#ef4444",
+                  }}
+                />
               </div>
             </div>
           )}
@@ -316,25 +250,15 @@ export default function ConversationPanel({ agentId }: Props) {
 
       {/* Microphone notice */}
       {!isConnected && (
-        <p style={{ fontSize: "0.75rem", color: "#9ca3af", textAlign: "center", marginTop: "0.75rem" }}>
-          <Mic style={{ height: "0.75rem", width: "0.75rem", display: "inline", marginRight: "0.25rem", verticalAlign: "middle" }} />
+        <p className="text-xs text-slate-400 text-center mt-3">
+          <Mic className="h-3 w-3 inline mr-1 align-middle" />
           L&apos;acces au microphone sera demande au demarrage
         </p>
       )}
 
       {/* Debug panel */}
       {debugInfo.length > 0 && (
-        <div style={{
-          marginTop: "1rem",
-          padding: "0.5rem",
-          backgroundColor: "#1f2937",
-          color: "#10b981",
-          borderRadius: "0.375rem",
-          fontSize: "0.675rem",
-          fontFamily: "monospace",
-          maxHeight: "120px",
-          overflowY: "auto",
-        }}>
+        <div className="mt-4 p-2 bg-slate-800 text-emerald-400 rounded-md text-[0.675rem] font-mono max-h-[120px] overflow-y-auto">
           {debugInfo.map((info, i) => (
             <div key={i}>{info}</div>
           ))}

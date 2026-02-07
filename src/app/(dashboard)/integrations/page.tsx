@@ -77,7 +77,6 @@ const INTEGRATION_CARDS: IntegrationCard[] = [
   },
 ];
 
-// ===================== MAIN PAGE =====================
 export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,9 +86,12 @@ export default function IntegrationsPage() {
     setLoading(true);
     try {
       const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
       const { data, error } = await supabase
         .from("integrations")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       setIntegrations((data as Integration[]) || []);
@@ -104,7 +106,6 @@ export default function IntegrationsPage() {
     fetchIntegrations();
   }, [fetchIntegrations]);
 
-  // Handle OAuth callback redirect params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const connected = params.get("connected");
@@ -128,12 +129,10 @@ export default function IntegrationsPage() {
     );
   };
 
-  // Check if a card is connected (provider is active)
   const isCardConnected = (card: IntegrationCard): boolean => {
     return !!getIntegration(card.provider);
   };
 
-  // Check if the conflicting card is active (e.g. Google Calendar connected blocks Outlook Calendar)
   const isConflicting = (card: IntegrationCard): boolean => {
     const conflictCard = INTEGRATION_CARDS.find(
       (c) => c.id === card.conflictWith
@@ -183,7 +182,6 @@ export default function IntegrationsPage() {
     }
   };
 
-  // Fallback icon component when image not found
   const CardIcon = ({ card }: { card: IntegrationCard }) => {
     const isCalendar = card.category === "calendar";
     const color = card.provider === "google" ? "#4285F4" : "#0078D4";
@@ -191,17 +189,8 @@ export default function IntegrationsPage() {
 
     return (
       <div
-        style={{
-          width: "3rem",
-          height: "3rem",
-          borderRadius: "0.75rem",
-          backgroundColor: bgColor,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color,
-          flexShrink: 0,
-        }}
+        className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+        style={{ backgroundColor: bgColor, color }}
       >
         {isCalendar ? <Calendar size={24} /> : <Mail size={24} />}
       </div>
@@ -211,41 +200,18 @@ export default function IntegrationsPage() {
   return (
     <div>
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "1.5rem",
-          flexWrap: "wrap",
-          gap: "1rem",
-        }}
-      >
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
-          <h1
-            style={{
-              fontSize: "1.5rem",
-              fontWeight: 700,
-              color: "#111827",
-              margin: 0,
-            }}
-          >
+          <h1 className="text-xl font-semibold text-slate-900 m-0">
             Integrations
           </h1>
-          <p
-            style={{
-              color: "#6b7280",
-              marginTop: "0.25rem",
-              fontSize: "0.875rem",
-            }}
-          >
+          <p className="text-sm text-slate-500 mt-1">
             Connectez vos services externes pour etendre les fonctionnalites
           </p>
         </div>
         <button
           onClick={fetchIntegrations}
-          className="btn-secondary"
-          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+          className="btn-secondary flex items-center gap-2"
         >
           <RefreshCw size={16} />
           Actualiser
@@ -254,32 +220,11 @@ export default function IntegrationsPage() {
 
       {/* Content */}
       {loading ? (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            padding: "5rem 0",
-          }}
-        >
-          <div
-            style={{
-              width: "2rem",
-              height: "2rem",
-              border: "4px solid #FFEDD5",
-              borderTopColor: "#F97316",
-              borderRadius: "50%",
-              animation: "spin 1s linear infinite",
-            }}
-          />
+        <div className="flex justify-center py-20">
+          <div className="spinner" />
         </div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gap: "1.5rem",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          }}
-        >
+        <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
           {INTEGRATION_CARDS.map((card) => {
             const connected = isCardConnected(card);
             const conflicting = !connected && isConflicting(card);
@@ -287,80 +232,29 @@ export default function IntegrationsPage() {
             return (
               <div
                 key={card.id}
-                className="card"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  textAlign: "center",
-                  alignItems: "center",
-                  padding: "1.5rem",
-                }}
+                className="card flex flex-col text-center items-center p-6"
               >
-                {/* Icon */}
                 <CardIcon card={card} />
 
-                {/* Name */}
-                <h3
-                  style={{
-                    fontSize: "1.125rem",
-                    fontWeight: 600,
-                    color: "#111827",
-                    margin: "0.75rem 0 0.5rem",
-                  }}
-                >
+                <h3 className="text-lg font-semibold text-slate-900 mt-3 mb-2">
                   {card.name}
                 </h3>
 
-                {/* Description or conflict warning */}
                 {conflicting ? (
-                  <p
-                    style={{
-                      fontSize: "0.8125rem",
-                      color: "#b45309",
-                      lineHeight: 1.5,
-                      margin: 0,
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: "0.375rem",
-                      textAlign: "left",
-                    }}
-                  >
-                    <AlertTriangle
-                      size={14}
-                      style={{ flexShrink: 0, marginTop: "0.125rem" }}
-                    />
+                  <p className="text-[0.8125rem] text-amber-700 leading-relaxed m-0 flex items-start gap-1.5 text-left">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                     {card.conflictMessage}
                   </p>
                 ) : (
-                  <p
-                    style={{
-                      fontSize: "0.8125rem",
-                      color: "#6b7280",
-                      lineHeight: 1.5,
-                      margin: 0,
-                    }}
-                  >
+                  <p className="text-[0.8125rem] text-slate-500 leading-relaxed m-0">
                     {card.description}
                   </p>
                 )}
 
-                {/* Action button */}
-                <div style={{ marginTop: "auto", width: "100%", paddingTop: "1rem" }}>
+                <div className="mt-auto w-full pt-4">
                   {connected ? (
                     <button
-                      className="btn-secondary"
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "0.5rem",
-                        backgroundColor: "#ecfdf5",
-                        color: "#059669",
-                        border: "1px solid #a7f3d0",
-                        cursor: "default",
-                        position: "relative",
-                      }}
+                      className="btn-secondary w-full flex items-center justify-center gap-2 bg-emerald-50 text-emerald-600 border-emerald-200"
                       onClick={() => handleDisconnect(card.provider)}
                       title="Cliquez pour deconnecter"
                     >
@@ -369,23 +263,13 @@ export default function IntegrationsPage() {
                     </button>
                   ) : (
                     <button
-                      className="btn-primary"
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "0.5rem",
-                        opacity: conflicting ? 0.6 : 1,
-                      }}
+                      className="btn-primary w-full flex items-center justify-center gap-2"
+                      style={{ opacity: conflicting ? 0.6 : 1 }}
                       onClick={() => handleConnect(card)}
                       disabled={conflicting || connecting === card.id}
                     >
                       {connecting === card.id ? (
-                        <RefreshCw
-                          size={14}
-                          style={{ animation: "spin 1s linear infinite" }}
-                        />
+                        <RefreshCw size={14} className="animate-spin" />
                       ) : (
                         <Link size={14} />
                       )}

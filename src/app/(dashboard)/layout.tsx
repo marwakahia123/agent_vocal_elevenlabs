@@ -13,25 +13,18 @@ export default function DashboardLayout({
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-        <div style={{
-          width: "2.5rem",
-          height: "2.5rem",
-          border: "4px solid #FFEDD5",
-          borderTopColor: "#F97316",
-          borderRadius: "50%",
-          animation: "spin 1s linear infinite",
-        }} />
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="spinner" />
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div className="flex min-h-screen">
       <Sidebar />
-      <div style={{ flex: 1, marginLeft: "260px", display: "flex", flexDirection: "column" }}>
+      <div className="flex-1 ml-[260px] flex flex-col">
         <TopBar />
-        <main style={{ flex: 1, padding: "1.5rem", backgroundColor: "#f9fafb" }}>
+        <main className="flex-1 p-6 bg-slate-50">
           {children}
         </main>
       </div>

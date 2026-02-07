@@ -55,15 +55,7 @@ function ReinitialiserContent() {
   return (
     <div className="auth-card">
       <div className="auth-logo">
-        <div style={{
-          width: "2.5rem",
-          height: "2.5rem",
-          borderRadius: "0.75rem",
-          background: "linear-gradient(135deg, #F97316, #EA580C)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}>
+        <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center">
           <Phone size={20} color="white" />
         </div>
         <div className="auth-logo-text">
@@ -71,42 +63,31 @@ function ReinitialiserContent() {
         </div>
       </div>
 
-      <h1 style={{ fontSize: "1.25rem", fontWeight: 700, textAlign: "center", color: "#111827", marginBottom: "0.25rem" }}>
+      <h1 className="text-xl font-bold text-center text-slate-900 mb-1">
         Nouveau mot de passe
       </h1>
-      <p style={{ fontSize: "0.875rem", color: "#6b7280", textAlign: "center", marginBottom: "1.5rem" }}>
+      <p className="text-sm text-slate-500 text-center mb-6">
         Choisissez un nouveau mot de passe pour<br />
-        <strong style={{ color: "#111827" }}>{email}</strong>
+        <strong className="text-slate-900">{email}</strong>
       </p>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
           <label className="label">Nouveau mot de passe</label>
-          <div style={{ position: "relative" }}>
+          <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="input-field"
+              className="input-field pr-10"
               placeholder="Minimum 6 caracteres"
               required
               minLength={6}
-              style={{ paddingRight: "2.5rem" }}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              style={{
-                position: "absolute",
-                right: "0.5rem",
-                top: "50%",
-                transform: "translateY(-50%)",
-                border: "none",
-                background: "none",
-                cursor: "pointer",
-                color: "#9ca3af",
-                padding: "0.25rem",
-              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 border-none bg-transparent cursor-pointer text-slate-400 p-1"
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
@@ -128,8 +109,7 @@ function ReinitialiserContent() {
         <button
           type="submit"
           disabled={loading}
-          className="btn-primary"
-          style={{ width: "100%", padding: "0.75rem", fontSize: "0.9375rem" }}
+          className="btn-primary w-full py-3 text-[0.9375rem]"
         >
           {loading ? "Modification..." : "Changer le mot de passe"}
         </button>
@@ -141,8 +121,8 @@ function ReinitialiserContent() {
 export default function ReinitialiserPage() {
   return (
     <Suspense fallback={
-      <div className="auth-card" style={{ textAlign: "center", padding: "3rem" }}>
-        <div style={{ width: "2rem", height: "2rem", border: "3px solid #FFEDD5", borderTopColor: "#F97316", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto" }} />
+      <div className="auth-card text-center p-12">
+        <div className="spinner mx-auto" />
       </div>
     }>
       <ReinitialiserContent />

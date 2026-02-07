@@ -103,15 +103,7 @@ function VerificationContent() {
   return (
     <div className="auth-card">
       <div className="auth-logo">
-        <div style={{
-          width: "2.5rem",
-          height: "2.5rem",
-          borderRadius: "0.75rem",
-          background: "linear-gradient(135deg, #F97316, #EA580C)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}>
+        <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center">
           <Phone size={20} color="white" />
         </div>
         <div className="auth-logo-text">
@@ -119,15 +111,15 @@ function VerificationContent() {
         </div>
       </div>
 
-      <h1 style={{ fontSize: "1.25rem", fontWeight: 700, textAlign: "center", color: "#111827", marginBottom: "0.25rem" }}>
+      <h1 className="text-xl font-bold text-center text-slate-900 mb-1">
         Verification
       </h1>
-      <p style={{ fontSize: "0.875rem", color: "#6b7280", textAlign: "center", marginBottom: "1.5rem" }}>
+      <p className="text-sm text-slate-500 text-center mb-6">
         Entrez le code a 6 chiffres envoye a<br />
-        <strong style={{ color: "#111827" }}>{email}</strong>
+        <strong className="text-slate-900">{email}</strong>
       </p>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <div className="otp-container" onPaste={handlePaste}>
           {code.map((digit, i) => (
             <input
@@ -147,8 +139,7 @@ function VerificationContent() {
         <button
           type="submit"
           disabled={loading || code.join("").length !== 6}
-          className="btn-primary"
-          style={{ width: "100%", padding: "0.75rem", fontSize: "0.9375rem" }}
+          className="btn-primary w-full py-3 text-[0.9375rem]"
         >
           {loading ? "Verification..." : "Verifier"}
         </button>
@@ -156,19 +147,7 @@ function VerificationContent() {
 
       <button
         onClick={() => router.back()}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "0.375rem",
-          width: "100%",
-          marginTop: "1rem",
-          border: "none",
-          background: "none",
-          color: "#6b7280",
-          fontSize: "0.875rem",
-          cursor: "pointer",
-        }}
+        className="flex items-center justify-center gap-1.5 w-full mt-4 border-none bg-transparent text-slate-500 text-sm cursor-pointer hover:text-slate-900 transition-colors"
       >
         <ArrowLeft size={14} />
         Retour
@@ -180,8 +159,8 @@ function VerificationContent() {
 export default function VerificationPage() {
   return (
     <Suspense fallback={
-      <div className="auth-card" style={{ textAlign: "center", padding: "3rem" }}>
-        <div style={{ width: "2rem", height: "2rem", border: "3px solid #FFEDD5", borderTopColor: "#F97316", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto" }} />
+      <div className="auth-card text-center p-12">
+        <div className="spinner mx-auto" />
       </div>
     }>
       <VerificationContent />

@@ -110,7 +110,6 @@ function AudioPlayer({ elevenlabsConversationId }: { elevenlabsConversationId: s
 
     setLoading(true);
     try {
-      // Use fetch directly for binary data — supabase.functions.invoke doesn't handle blobs well
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
@@ -165,18 +164,11 @@ function AudioPlayer({ elevenlabsConversationId }: { elevenlabsConversationId: s
     <button
       onClick={(e) => { e.stopPropagation(); loadAudio(); }}
       disabled={loading}
-      className="badge badge-warning"
-      style={{
-        cursor: loading ? "wait" : "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "0.25rem",
-        border: "none",
-        backgroundColor: playing ? "#FFF7ED" : undefined,
-      }}
+      className="badge badge-warning border-none cursor-pointer inline-flex items-center gap-1"
+      style={{ backgroundColor: playing ? "#f1f5f9" : undefined }}
     >
       {loading ? (
-        <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+        <Loader2 size={12} className="animate-spin" />
       ) : playing ? (
         <Pause size={12} />
       ) : (
@@ -217,7 +209,9 @@ export default function HistoriqueAppelsPage() {
   useEffect(() => {
     async function fetchAgents() {
       const supabase = createClient();
-      const { data } = await supabase.from("agents").select("id, name").order("name");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("agents").select("id, name").eq("user_id", user.id).order("name");
       if (data) setAgents(data);
     }
     fetchAgents();
@@ -268,65 +262,41 @@ export default function HistoriqueAppelsPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#111827", margin: 0 }}>
-            Historique des appels
-          </h1>
-          <p style={{ color: "#6b7280", marginTop: "0.25rem", fontSize: "0.875rem" }}>
-            Consultez et filtrez toutes vos conversations
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900 m-0">Historique des appels</h1>
+          <p className="text-sm text-slate-500 mt-1">Consultez et filtrez toutes vos conversations</p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem" }}>
-          <button onClick={handleExport} className="btn-secondary" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Download size={16} />
-            Exporter CSV
+        <div className="flex gap-3">
+          <button onClick={handleExport} className="btn-secondary flex items-center gap-2">
+            <Download size={16} /> Exporter CSV
           </button>
-          <button onClick={fetchConversations} className="btn-secondary" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <RefreshCw size={16} />
-            Actualiser
+          <button onClick={fetchConversations} className="btn-secondary flex items-center gap-2">
+            <RefreshCw size={16} /> Actualiser
           </button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="card" style={{ marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "flex-end" }}>
-          <div style={{ flex: "1 1 250px" }}>
+      <div className="card mb-6">
+        <div className="flex gap-4 flex-wrap items-end">
+          <div className="flex-[1_1_250px]">
             <label className="label">
-              <Search size={14} style={{ display: "inline", marginRight: "0.25rem", verticalAlign: "middle" }} />
-              Recherche
+              <Search size={14} className="inline mr-1 align-middle" /> Recherche
             </label>
-            <input
-              type="text"
-              className="input-field"
-              placeholder="Rechercher par agent ou telephone..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <input type="text" className="input-field" placeholder="Rechercher par agent ou telephone..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <div style={{ flex: "0 1 180px" }}>
+          <div className="flex-[0_1_180px]">
             <label className="label">
-              <Calendar size={14} style={{ display: "inline", marginRight: "0.25rem", verticalAlign: "middle" }} />
-              Date
+              <Calendar size={14} className="inline mr-1 align-middle" /> Date
             </label>
-            <input
-              type="date"
-              className="input-field"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-            />
+            <input type="date" className="input-field" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} />
           </div>
-          <div style={{ flex: "0 1 160px" }}>
+          <div className="flex-[0_1_160px]">
             <label className="label">
-              <Filter size={14} style={{ display: "inline", marginRight: "0.25rem", verticalAlign: "middle" }} />
-              Type
+              <Filter size={14} className="inline mr-1 align-middle" /> Type
             </label>
-            <select
-              className="input-field"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
+            <select className="input-field" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
               <option value="all">Tous les types</option>
               <option value="inbound">Entrant</option>
               <option value="outbound">Sortant</option>
@@ -334,29 +304,20 @@ export default function HistoriqueAppelsPage() {
               <option value="test">Test</option>
             </select>
           </div>
-          <div style={{ flex: "0 1 200px" }}>
+          <div className="flex-[0_1_200px]">
             <label className="label">
-              <Bot size={14} style={{ display: "inline", marginRight: "0.25rem", verticalAlign: "middle" }} />
-              Agent
+              <Bot size={14} className="inline mr-1 align-middle" /> Agent
             </label>
-            <select
-              className="input-field"
-              value={agentFilter}
-              onChange={(e) => setAgentFilter(e.target.value)}
-            >
+            <select className="input-field" value={agentFilter} onChange={(e) => setAgentFilter(e.target.value)}>
               <option value="all">Tous les agents</option>
               {agents.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
           </div>
-          <div style={{ flex: "0 1 160px" }}>
+          <div className="flex-[0_1_160px]">
             <label className="label">Status</label>
-            <select
-              className="input-field"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
+            <select className="input-field" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="all">Tous</option>
               <option value="ended">Termine</option>
               <option value="active">En cours</option>
@@ -365,15 +326,8 @@ export default function HistoriqueAppelsPage() {
           </div>
           {(search || dateFilter || typeFilter !== "all" || statusFilter !== "all" || agentFilter !== "all") && (
             <button
-              className="btn-ghost"
-              onClick={() => {
-                setSearch("");
-                setDateFilter("");
-                setTypeFilter("all");
-                setStatusFilter("all");
-                setAgentFilter("all");
-              }}
-              style={{ marginBottom: "2px" }}
+              className="btn-ghost mb-0.5"
+              onClick={() => { setSearch(""); setDateFilter(""); setTypeFilter("all"); setStatusFilter("all"); setAgentFilter("all"); }}
             >
               Effacer filtres
             </button>
@@ -383,15 +337,8 @@ export default function HistoriqueAppelsPage() {
 
       {/* Content */}
       {loading ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: "5rem 0" }}>
-          <div style={{
-            width: "2rem",
-            height: "2rem",
-            border: "4px solid #FFEDD5",
-            borderTopColor: "#F97316",
-            borderRadius: "50%",
-            animation: "spin 1s linear infinite",
-          }} />
+        <div className="flex justify-center py-20">
+          <div className="spinner" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="card">
@@ -412,10 +359,7 @@ export default function HistoriqueAppelsPage() {
               <tr>
                 <th>Date</th>
                 <th>Agent</th>
-                <th>
-                  <Clock size={14} style={{ display: "inline", marginRight: "0.25rem", verticalAlign: "middle" }} />
-                  Duree
-                </th>
+                <th><Clock size={14} className="inline mr-1 align-middle" />Duree</th>
                 <th>Type</th>
                 <th>Status</th>
                 <th>Telephone</th>
@@ -427,18 +371,15 @@ export default function HistoriqueAppelsPage() {
                 <tr
                   key={conv.id}
                   onClick={() => setExpandedId(expandedId === conv.id ? null : conv.id)}
-                  style={{ cursor: "pointer" }}
+                  className="cursor-pointer"
                 >
                   <td>{formatDate(conv.started_at)}</td>
-                  <td style={{ fontWeight: 500, color: "#111827" }}>
+                  <td className="font-medium text-slate-900">
                     {(conv.agent as { name: string } | null)?.name || "—"}
                   </td>
                   <td>{formatDuration(conv.duration_seconds)}</td>
                   <td>
-                    <span
-                      className="badge badge-info"
-                      style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
-                    >
+                    <span className="badge badge-info inline-flex items-center gap-1">
                       <CallTypeIcon type={conv.call_type || "test"} />
                       {CALL_TYPE_LABELS[conv.call_type || "test"] || conv.call_type}
                     </span>
@@ -450,19 +391,18 @@ export default function HistoriqueAppelsPage() {
                   </td>
                   <td>{conv.caller_phone || "—"}</td>
                   <td>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <div className="flex items-center gap-2">
                       {conv.elevenlabs_conversation_id && (
                         <AudioPlayer elevenlabsConversationId={conv.elevenlabs_conversation_id} />
                       )}
                       {conv.messages && conv.messages.length > 0 && (
-                        <span className="badge" style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-                          <MessageSquare size={12} />
-                          {conv.messages.length}
+                        <span className="badge inline-flex items-center gap-1">
+                          <MessageSquare size={12} /> {conv.messages.length}
                         </span>
                       )}
                       {expandedId === conv.id
-                        ? <ChevronUp size={16} style={{ color: "#9ca3af" }} />
-                        : <ChevronDown size={16} style={{ color: "#9ca3af" }} />
+                        ? <ChevronUp size={16} className="text-slate-400" />
+                        : <ChevronDown size={16} className="text-slate-400" />
                       }
                     </div>
                   </td>
@@ -477,52 +417,30 @@ export default function HistoriqueAppelsPage() {
             if (!conv) return null;
             const hasMessages = conv.messages && conv.messages.length > 0;
             return (
-              <div style={{
-                margin: "0 0 1rem 0",
-                border: "1px solid #e5e7eb",
-                borderRadius: "0 0 0.5rem 0.5rem",
-                backgroundColor: "#f9fafb",
-                padding: "1rem",
-                maxHeight: "400px",
-                overflowY: "auto",
-              }}>
+              <div className="border border-slate-200 rounded-b-lg bg-slate-50 p-4 max-h-[400px] overflow-y-auto">
                 {hasMessages ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  <div className="flex flex-col gap-2">
                     {conv.messages
                       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                       .map((msg) => (
                         <div
                           key={msg.id}
-                          style={{
-                            display: "flex",
-                            justifyContent: msg.source === "user" ? "flex-end" : "flex-start",
-                          }}
+                          className={`flex ${msg.source === "user" ? "justify-end" : "justify-start"}`}
                         >
-                          <div style={{
-                            maxWidth: "85%",
-                            borderRadius: "0.75rem",
-                            padding: "0.375rem 0.75rem",
-                            fontSize: "0.8rem",
-                            ...(msg.source === "user"
-                              ? {
-                                  backgroundColor: "#F97316",
-                                  color: "white",
-                                  borderBottomRightRadius: "0.25rem",
-                                }
-                              : {
-                                  backgroundColor: "white",
-                                  color: "#1f2937",
-                                  border: "1px solid #e5e7eb",
-                                  borderBottomLeftRadius: "0.25rem",
-                                }),
-                          }}>
-                            <p style={{ margin: 0 }}>{msg.content}</p>
+                          <div
+                            className={`max-w-[85%] rounded-xl px-3 py-1.5 text-[0.8rem] ${
+                              msg.source === "user"
+                                ? "bg-slate-900 text-white rounded-br-sm"
+                                : "bg-white text-slate-800 border border-slate-200 rounded-bl-sm"
+                            }`}
+                          >
+                            <p className="m-0">{msg.content}</p>
                           </div>
                         </div>
                       ))}
                   </div>
                 ) : (
-                  <div style={{ textAlign: "center", color: "#9ca3af", fontSize: "0.8rem" }}>
+                  <div className="text-center text-slate-400 text-[0.8rem]">
                     Aucun message enregistre
                   </div>
                 )}
@@ -532,9 +450,8 @@ export default function HistoriqueAppelsPage() {
         </div>
       )}
 
-      {/* Results count */}
       {!loading && filtered.length > 0 && (
-        <div style={{ marginTop: "1rem", fontSize: "0.8125rem", color: "#6b7280" }}>
+        <div className="mt-4 text-[0.8125rem] text-slate-500">
           {filtered.length} appel{filtered.length > 1 ? "s" : ""} affiche{filtered.length > 1 ? "s" : ""}
         </div>
       )}

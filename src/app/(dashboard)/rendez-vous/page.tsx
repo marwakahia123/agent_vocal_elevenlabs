@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { syncCalendar } from "@/lib/elevenlabs";
 import { formatTime } from "@/lib/utils";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   startOfMonth,
   endOfMonth,
@@ -88,9 +89,12 @@ export default function RendezVousPage() {
   const fetchIntegration = useCallback(async () => {
     try {
       const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
       const { data } = await supabase
         .from("integrations")
         .select("*")
+        .eq("user_id", user.id)
         .eq("is_active", true)
         .in("provider", ["google", "microsoft"])
         .limit(1)
@@ -103,9 +107,12 @@ export default function RendezVousPage() {
 
   const fetchAppointments = useCallback(async () => {
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     const { data } = await supabase
       .from("appointments")
       .select("*, contact:contacts(first_name, last_name)")
+      .eq("user_id", user.id)
       .order("start_at", { ascending: true });
     setAppointments((data as Appointment[]) || []);
   }, []);
@@ -133,13 +140,17 @@ export default function RendezVousPage() {
 
   const fetchContacts = useCallback(async () => {
     const supabase = createClient();
-    const { data } = await supabase.from("contacts").select("id, first_name, last_name").order("last_name");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from("contacts").select("id, first_name, last_name").eq("user_id", user.id).order("last_name");
     if (data) setContacts(data);
   }, []);
 
   const fetchAgents = useCallback(async () => {
     const supabase = createClient();
-    const { data } = await supabase.from("agents").select("id, name").order("name");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from("agents").select("id, name").eq("user_id", user.id).order("name");
     if (data) setAgents(data);
   }, []);
 
@@ -297,8 +308,8 @@ export default function RendezVousPage() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", padding: "5rem 0" }}>
-        <div style={{ width: "2rem", height: "2rem", border: "4px solid #FFEDD5", borderTopColor: "#F97316", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+      <div className="flex justify-center py-20">
+        <div className="spinner" />
       </div>
     );
   }
@@ -306,21 +317,20 @@ export default function RendezVousPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "0.75rem" }}>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#111827", margin: 0 }}>Rendez-vous</h1>
-          <p style={{ color: "#6b7280", fontSize: "0.875rem", marginTop: "0.25rem" }}>
+          <h1 className="text-xl font-semibold text-slate-900 m-0">Rendez-vous</h1>
+          <p className="text-sm text-slate-500 mt-1">
             {integration
               ? `Synchronise avec ${integration.provider === "google" ? "Google Calendar" : "Outlook Calendar"}`
               : "Gerez vos rendez-vous et planifications"}
           </p>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <div className="flex gap-2 items-center">
           {!integration && (
             <button
               onClick={() => router.push("/integrations")}
-              className="btn-secondary"
-              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+              className="btn-secondary flex items-center gap-2"
             >
               <LinkIcon size={16} />
               Connecter un calendrier
@@ -331,8 +341,7 @@ export default function RendezVousPage() {
               setForm({ title: "", description: "", start_at: "", end_at: "", location: "", contact_id: "", agent_id: "" });
               setShowModal(true);
             }}
-            className="btn-primary"
-            style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            className="btn-primary flex items-center gap-2"
           >
             <Plus size={16} /> Nouveau rendez-vous
           </button>
@@ -341,31 +350,19 @@ export default function RendezVousPage() {
 
       {/* Integration banner */}
       {!integration && (
-        <div
-          className="card"
-          style={{
-            padding: "1rem 1.5rem",
-            marginBottom: "1.5rem",
-            display: "flex",
-            alignItems: "center",
-            gap: "1rem",
-            backgroundColor: "#FFF7ED",
-            border: "1px solid #FDBA74",
-          }}
-        >
-          <Calendar size={24} style={{ color: "#EA580C", flexShrink: 0 }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600, color: "#9A3412", fontSize: "0.875rem" }}>
+        <div className="card px-6 py-4 mb-6 flex items-center gap-4 bg-blue-50 border border-blue-200">
+          <Calendar size={24} className="text-blue-700 shrink-0" />
+          <div className="flex-1">
+            <div className="font-semibold text-blue-900 text-sm">
               Aucun calendrier connecte
             </div>
-            <div style={{ color: "#C2410C", fontSize: "0.8125rem", marginTop: "0.125rem" }}>
+            <div className="text-blue-700 text-[0.8125rem] mt-0.5">
               Connectez Google Calendar ou Outlook pour voir tous vos evenements ici.
             </div>
           </div>
           <button
             onClick={() => router.push("/integrations")}
-            className="btn-primary"
-            style={{ flexShrink: 0, fontSize: "0.8125rem" }}
+            className="btn-primary shrink-0 text-[0.8125rem]"
           >
             Connecter
           </button>
@@ -373,55 +370,46 @@ export default function RendezVousPage() {
       )}
 
       {/* Calendar navigation */}
-      <div className="card" style={{ padding: "1rem 1.5rem", marginBottom: "1rem" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <button onClick={goPrev} className="btn-ghost" style={{ padding: "0.375rem" }}>
+      <div className="card px-6 py-4 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <button onClick={goPrev} className="btn-ghost p-1.5">
               <ChevronLeft size={20} />
             </button>
-            <h2 style={{ fontSize: "1.125rem", fontWeight: 600, color: "#111827", margin: 0, minWidth: "200px", textAlign: "center" }}>
+            <h2 className="text-lg font-semibold text-slate-900 m-0 min-w-[200px] text-center">
               {viewMode === "month"
                 ? format(currentDate, "MMMM yyyy", { locale: fr }).replace(/^./, (c) => c.toUpperCase())
                 : `Semaine du ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), "d MMM", { locale: fr })} au ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), "d MMM yyyy", { locale: fr })}`}
             </h2>
-            <button onClick={goNext} className="btn-ghost" style={{ padding: "0.375rem" }}>
+            <button onClick={goNext} className="btn-ghost p-1.5">
               <ChevronRight size={20} />
             </button>
           </div>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <div className="flex gap-2 items-center">
             {loadingExternal && (
-              <Loader2 size={16} style={{ color: "#9ca3af", animation: "spin 1s linear infinite" }} />
+              <Loader2 size={16} className="text-slate-400 animate-spin" />
             )}
-            <button onClick={goToday} className="btn-secondary" style={{ fontSize: "0.8125rem", padding: "0.375rem 0.75rem" }}>
+            <button onClick={goToday} className="btn-secondary text-[0.8125rem] py-1.5 px-3">
               Aujourd&apos;hui
             </button>
-            <div style={{ display: "flex", borderRadius: "0.375rem", overflow: "hidden", border: "1px solid #e5e7eb" }}>
+            <div className="flex rounded-md overflow-hidden border border-slate-200">
               <button
                 onClick={() => setViewMode("month")}
-                style={{
-                  padding: "0.375rem 0.75rem",
-                  fontSize: "0.8125rem",
-                  border: "none",
-                  cursor: "pointer",
-                  backgroundColor: viewMode === "month" ? "#F97316" : "white",
-                  color: viewMode === "month" ? "white" : "#6b7280",
-                  fontWeight: viewMode === "month" ? 600 : 400,
-                }}
+                className={`py-1.5 px-3 text-[0.8125rem] border-none cursor-pointer ${
+                  viewMode === "month"
+                    ? "bg-slate-900 text-white font-semibold"
+                    : "bg-white text-slate-500"
+                }`}
               >
                 Mois
               </button>
               <button
                 onClick={() => setViewMode("week")}
-                style={{
-                  padding: "0.375rem 0.75rem",
-                  fontSize: "0.8125rem",
-                  border: "none",
-                  borderLeft: "1px solid #e5e7eb",
-                  cursor: "pointer",
-                  backgroundColor: viewMode === "week" ? "#F97316" : "white",
-                  color: viewMode === "week" ? "white" : "#6b7280",
-                  fontWeight: viewMode === "week" ? 600 : 400,
-                }}
+                className={`py-1.5 px-3 text-[0.8125rem] border-none border-l border-slate-200 cursor-pointer ${
+                  viewMode === "week"
+                    ? "bg-slate-900 text-white font-semibold"
+                    : "bg-white text-slate-500"
+                }`}
               >
                 Semaine
               </button>
@@ -430,19 +418,11 @@ export default function RendezVousPage() {
         </div>
 
         {/* Day headers */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "1px", backgroundColor: "#e5e7eb" }}>
+        <div className="grid grid-cols-7 gap-px bg-slate-200">
           {dayNames.map((name) => (
             <div
               key={name}
-              style={{
-                textAlign: "center",
-                padding: "0.5rem",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                color: "#6b7280",
-                backgroundColor: "#f9fafb",
-                textTransform: "uppercase",
-              }}
+              className="text-center py-2 text-xs font-semibold text-slate-500 bg-slate-50 uppercase"
             >
               {name}
             </div>
@@ -450,15 +430,7 @@ export default function RendezVousPage() {
         </div>
 
         {/* Calendar grid */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr)",
-            gap: "1px",
-            backgroundColor: "#e5e7eb",
-            border: "1px solid #e5e7eb",
-          }}
-        >
+        <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200">
           {calendarDays.map((day) => {
             const dayEvents = getEventsForDay(day);
             const isCurrentMonth = isSameMonth(day, currentDate);
@@ -470,58 +442,38 @@ export default function RendezVousPage() {
                 key={day.toISOString()}
                 onClick={() => setSelectedDay(day)}
                 onDoubleClick={() => openCreateForDay(day)}
+                className={`p-1.5 cursor-pointer transition-colors relative ${
+                  isSelected ? "bg-slate-50" : "bg-white"
+                }`}
                 style={{
-                  backgroundColor: isSelected ? "#FFF7ED" : "white",
-                  padding: "0.375rem",
                   minHeight: viewMode === "week" ? "180px" : "90px",
-                  cursor: "pointer",
                   opacity: isCurrentMonth || viewMode === "week" ? 1 : 0.4,
-                  transition: "background-color 0.15s",
-                  position: "relative",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    marginBottom: "0.25rem",
-                  }}
-                >
+                <div className="flex justify-center mb-1">
                   <span
-                    style={{
-                      width: "1.625rem",
-                      height: "1.625rem",
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "0.75rem",
-                      fontWeight: today ? 700 : 500,
-                      backgroundColor: today ? "#F97316" : isSelected ? "#FFEDD5" : "transparent",
-                      color: today ? "white" : isSelected ? "#EA580C" : "#374151",
-                    }}
+                    className={`w-[1.625rem] h-[1.625rem] rounded-full flex items-center justify-center text-xs ${
+                      today
+                        ? "bg-slate-900 text-white font-bold"
+                        : isSelected
+                        ? "bg-slate-200 text-slate-900 font-medium"
+                        : "text-slate-700 font-medium"
+                    }`}
                   >
                     {format(day, "d")}
                   </span>
                 </div>
 
                 {/* Event dots / compact list */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+                <div className="flex flex-col gap-px">
                   {dayEvents.slice(0, viewMode === "week" ? 8 : 3).map((evt) => (
                     <div
                       key={evt.id}
                       onClick={(e) => { e.stopPropagation(); setSelectedEvent(evt); }}
+                      className="text-[0.625rem] px-1 rounded-sm whitespace-nowrap overflow-hidden text-ellipsis leading-snug cursor-pointer"
                       style={{
-                        fontSize: "0.625rem",
-                        padding: "1px 4px",
-                        borderRadius: "2px",
                         backgroundColor: evt.source === "external" ? "#EDE9FE" : "#DBEAFE",
                         color: evt.source === "external" ? "#7C3AED" : "#1D4ED8",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        lineHeight: "1.4",
-                        cursor: "pointer",
                       }}
                       title={`${formatTime(evt.start_at)} - ${evt.title}`}
                     >
@@ -529,7 +481,7 @@ export default function RendezVousPage() {
                     </div>
                   ))}
                   {dayEvents.length > (viewMode === "week" ? 8 : 3) && (
-                    <div style={{ fontSize: "0.625rem", color: "#9ca3af", textAlign: "center" }}>
+                    <div className="text-[0.625rem] text-slate-400 text-center">
                       +{dayEvents.length - (viewMode === "week" ? 8 : 3)} autres
                     </div>
                   )}
@@ -540,14 +492,14 @@ export default function RendezVousPage() {
         </div>
 
         {/* Legend */}
-        <div style={{ display: "flex", gap: "1rem", marginTop: "0.75rem", fontSize: "0.75rem", color: "#6b7280" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-            <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "#DBEAFE", display: "inline-block" }} />
+        <div className="flex gap-4 mt-3 text-xs text-slate-500">
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-sm bg-blue-100 inline-block" />
             Rendez-vous locaux
           </div>
           {integration && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: "#EDE9FE", display: "inline-block" }} />
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-sm bg-violet-100 inline-block" />
               {integration.provider === "google" ? "Google Calendar" : "Outlook Calendar"}
             </div>
           )}
@@ -556,90 +508,78 @@ export default function RendezVousPage() {
 
       {/* Selected day detail panel */}
       {selectedDay && (
-        <div className="card" style={{ padding: "1.25rem 1.5rem" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-            <h3 style={{ fontSize: "1rem", fontWeight: 600, color: "#111827", margin: 0 }}>
+        <div className="card px-6 py-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-slate-900 m-0">
               {format(selectedDay, "EEEE d MMMM yyyy", { locale: fr }).replace(/^./, (c) => c.toUpperCase())}
             </h3>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
+            <div className="flex gap-2">
               <button
                 onClick={() => openCreateForDay(selectedDay)}
-                className="btn-primary"
-                style={{ fontSize: "0.8125rem", padding: "0.375rem 0.75rem", display: "flex", alignItems: "center", gap: "0.375rem" }}
+                className="btn-primary text-[0.8125rem] py-1.5 px-3 flex items-center gap-1.5"
               >
                 <Plus size={14} /> Ajouter
               </button>
-              <button onClick={() => setSelectedDay(null)} className="btn-ghost" style={{ padding: "0.25rem" }}>
+              <button onClick={() => setSelectedDay(null)} className="btn-ghost p-1">
                 <X size={18} />
               </button>
             </div>
           </div>
 
           {selectedDayEvents.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "2rem 0", color: "#9ca3af" }}>
-              <Calendar size={32} style={{ margin: "0 auto 0.5rem", opacity: 0.5 }} />
-              <p style={{ fontSize: "0.875rem", margin: 0 }}>Aucun evenement ce jour</p>
-              <p style={{ fontSize: "0.75rem", margin: "0.25rem 0 0" }}>Double-cliquez sur un jour pour creer un rendez-vous</p>
+            <div className="text-center py-8 text-slate-400">
+              <Calendar size={32} className="mx-auto mb-2 opacity-50" />
+              <p className="text-sm m-0">Aucun evenement ce jour</p>
+              <p className="text-xs mt-1 m-0">Double-cliquez sur un jour pour creer un rendez-vous</p>
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            <div className="flex flex-col gap-2">
               {selectedDayEvents.map((evt) => {
                 const s = evt.status ? STATUS_COLORS[evt.status] : null;
                 return (
                   <div
                     key={evt.id}
                     onClick={() => setSelectedEvent(evt)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-shadow hover:shadow-md"
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.75rem",
-                      padding: "0.75rem 1rem",
-                      borderRadius: "0.5rem",
                       backgroundColor: evt.source === "external" ? "#FAFAFF" : "#FAFBFF",
                       border: `1px solid ${evt.source === "external" ? "#E9E5FF" : "#E5E7EB"}`,
-                      cursor: "pointer",
-                      transition: "box-shadow 0.15s",
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
                   >
                     {/* Time bar */}
                     <div
+                      className="w-[3px] h-10 rounded-sm shrink-0"
                       style={{
-                        width: "3px",
-                        height: "2.5rem",
-                        borderRadius: "2px",
-                        backgroundColor: evt.source === "external" ? "#7C3AED" : "#F97316",
-                        flexShrink: 0,
+                        backgroundColor: evt.source === "external" ? "#7C3AED" : "#0f172a",
                       }}
                     />
 
                     {/* Time */}
-                    <div style={{ minWidth: "3.5rem", textAlign: "center", flexShrink: 0 }}>
-                      <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "#111827" }}>
+                    <div className="min-w-[3.5rem] text-center shrink-0">
+                      <div className="text-sm font-semibold text-slate-900">
                         {formatTime(evt.start_at)}
                       </div>
-                      <div style={{ fontSize: "0.6875rem", color: "#9ca3af" }}>
+                      <div className="text-[0.6875rem] text-slate-400">
                         {formatTime(evt.end_at)}
                       </div>
                     </div>
 
                     {/* Info */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, color: "#111827", fontSize: "0.875rem" }}>{evt.title}</div>
-                      <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.75rem", color: "#6b7280", marginTop: "0.125rem", flexWrap: "wrap" }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-slate-900 text-sm">{evt.title}</div>
+                      <div className="flex gap-3 text-xs text-slate-500 mt-0.5 flex-wrap">
                         {evt.location && (
-                          <span style={{ display: "flex", alignItems: "center", gap: "0.2rem" }}>
+                          <span className="flex items-center gap-0.5">
                             <MapPin size={10} /> {evt.location}
                           </span>
                         )}
                         {evt.contact && (
-                          <span style={{ display: "flex", alignItems: "center", gap: "0.2rem" }}>
+                          <span className="flex items-center gap-0.5">
                             <User size={10} /> {evt.contact.first_name} {evt.contact.last_name}
                           </span>
                         )}
                         {evt.source === "external" && (
-                          <span style={{ color: "#7C3AED", fontStyle: "italic" }}>
+                          <span className="text-violet-600 italic">
                             {integration?.provider === "google" ? "Google" : "Outlook"}
                           </span>
                         )}
@@ -648,20 +588,11 @@ export default function RendezVousPage() {
 
                     {/* Actions (only for local events) */}
                     {evt.source === "local" && (
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+                      <div className="flex items-center gap-2 shrink-0">
                         {s && (
                           <select
-                            className="input-field"
-                            style={{
-                              fontSize: "0.75rem",
-                              padding: "0.2rem 0.4rem",
-                              width: "auto",
-                              backgroundColor: s.bg,
-                              color: s.color,
-                              fontWeight: 500,
-                              border: "none",
-                              borderRadius: "0.25rem",
-                            }}
+                            className="input-field text-xs py-0.5 px-1.5 w-auto font-medium border-none rounded"
+                            style={{ backgroundColor: s.bg, color: s.color }}
                             value={evt.status}
                             onChange={(e) => handleStatusChange(evt.id, e.target.value)}
                           >
@@ -671,8 +602,7 @@ export default function RendezVousPage() {
                           </select>
                         )}
                         <button
-                          className="btn-ghost"
-                          style={{ padding: "0.25rem", color: "#ef4444" }}
+                          className="btn-ghost p-1 text-red-500"
                           onClick={() => handleDelete(evt.id)}
                         >
                           <Trash2 size={14} />
@@ -688,221 +618,229 @@ export default function RendezVousPage() {
       )}
 
       {/* Event detail modal */}
-      {selectedEvent && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.5)" }} onClick={() => setSelectedEvent(null)} />
-          <div style={{ position: "relative", backgroundColor: "white", borderRadius: "1rem", padding: "1.5rem", width: "100%", maxWidth: "28rem", margin: "0 1rem", maxHeight: "90vh", overflow: "auto" }}>
-            {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flex: 1, minWidth: 0 }}>
-                <div style={{
-                  width: "3rem",
-                  height: "3rem",
-                  borderRadius: "0.75rem",
-                  backgroundColor: selectedEvent.source === "external" ? "#EDE9FE" : "#FFF7ED",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}>
-                  <span style={{ fontSize: "0.5625rem", fontWeight: 600, color: selectedEvent.source === "external" ? "#7C3AED" : "#F97316", textTransform: "uppercase" }}>
-                    {format(parseISO(selectedEvent.start_at), "MMM", { locale: fr })}
-                  </span>
-                  <span style={{ fontSize: "1.125rem", fontWeight: 700, color: selectedEvent.source === "external" ? "#5B21B6" : "#EA580C", lineHeight: 1 }}>
-                    {format(parseISO(selectedEvent.start_at), "d")}
-                  </span>
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#111827", margin: 0, wordBreak: "break-word" }}>
-                    {selectedEvent.title}
-                  </h2>
-                  {selectedEvent.source === "external" && (
-                    <span style={{ fontSize: "0.75rem", color: "#7C3AED", fontStyle: "italic" }}>
-                      {integration?.provider === "google" ? "Google Calendar" : "Outlook Calendar"}
-                    </span>
-                  )}
-                  {selectedEvent.status && STATUS_COLORS[selectedEvent.status] && (
-                    <span style={{
-                      display: "inline-block",
-                      fontSize: "0.6875rem",
-                      fontWeight: 500,
-                      padding: "0.125rem 0.5rem",
-                      borderRadius: "9999px",
-                      backgroundColor: STATUS_COLORS[selectedEvent.status].bg,
-                      color: STATUS_COLORS[selectedEvent.status].color,
-                      marginTop: "0.25rem",
-                    }}>
-                      {STATUS_COLORS[selectedEvent.status].label}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button onClick={() => setSelectedEvent(null)} className="btn-ghost" style={{ padding: "0.25rem", flexShrink: 0 }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Details */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-              {/* Date & Time */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                <Clock size={16} style={{ color: "#6b7280", flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontSize: "0.875rem", color: "#111827", fontWeight: 500 }}>
-                    {format(parseISO(selectedEvent.start_at), "EEEE d MMMM yyyy", { locale: fr }).replace(/^./, (c) => c.toUpperCase())}
-                  </div>
-                  <div style={{ fontSize: "0.8125rem", color: "#6b7280" }}>
-                    {formatTime(selectedEvent.start_at)} — {formatTime(selectedEvent.end_at)}
-                  </div>
-                </div>
-              </div>
-
-              {/* Location */}
-              {selectedEvent.location && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                  <MapPin size={16} style={{ color: "#6b7280", flexShrink: 0 }} />
-                  <span style={{ fontSize: "0.875rem", color: "#111827" }}>{selectedEvent.location}</span>
-                </div>
-              )}
-
-              {/* Contact */}
-              {selectedEvent.contact && (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                  <User size={16} style={{ color: "#6b7280", flexShrink: 0 }} />
-                  <span style={{ fontSize: "0.875rem", color: "#111827" }}>
-                    {selectedEvent.contact.first_name} {selectedEvent.contact.last_name}
-                  </span>
-                </div>
-              )}
-
-              {/* Description */}
-              {selectedEvent.description && (
-                <div style={{
-                  backgroundColor: "#f9fafb",
-                  borderRadius: "0.5rem",
-                  padding: "0.75rem 1rem",
-                  fontSize: "0.8125rem",
-                  color: "#374151",
-                  lineHeight: 1.6,
-                  whiteSpace: "pre-wrap",
-                  marginTop: "0.25rem",
-                }}>
-                  {selectedEvent.description}
-                </div>
-              )}
-            </div>
-
-            {/* Actions for local events */}
-            {selectedEvent.source === "local" && (
-              <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", marginTop: "1.25rem", paddingTop: "1rem", borderTop: "1px solid #f3f4f6" }}>
-                {selectedEvent.status && (
-                  <select
-                    className="input-field"
+      <AnimatePresence>
+        {selectedEvent && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setSelectedEvent(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-auto"
+            >
+              {/* Header */}
+              <div className="flex justify-between items-start mb-5">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div
+                    className="w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0"
                     style={{
-                      fontSize: "0.8125rem",
-                      padding: "0.375rem 0.5rem",
-                      width: "auto",
-                      backgroundColor: STATUS_COLORS[selectedEvent.status]?.bg || "#f3f4f6",
-                      color: STATUS_COLORS[selectedEvent.status]?.color || "#374151",
-                      fontWeight: 500,
-                      border: "none",
-                      borderRadius: "0.375rem",
-                    }}
-                    value={selectedEvent.status}
-                    onChange={(e) => {
-                      handleStatusChange(selectedEvent.id, e.target.value);
-                      setSelectedEvent({ ...selectedEvent, status: e.target.value });
+                      backgroundColor: selectedEvent.source === "external" ? "#EDE9FE" : "#f1f5f9",
                     }}
                   >
-                    {Object.entries(STATUS_COLORS).map(([key, val]) => (
-                      <option key={key} value={key}>{val.label}</option>
-                    ))}
-                  </select>
-                )}
-                <button
-                  className="btn-secondary"
-                  style={{ display: "flex", alignItems: "center", gap: "0.375rem", color: "#ef4444", borderColor: "#fecaca", fontSize: "0.8125rem" }}
-                  onClick={() => {
-                    handleDelete(selectedEvent.id);
-                    setSelectedEvent(null);
-                  }}
-                >
-                  <Trash2 size={14} />
-                  Supprimer
+                    <span
+                      className="text-[0.5625rem] font-semibold uppercase"
+                      style={{ color: selectedEvent.source === "external" ? "#7C3AED" : "#0f172a" }}
+                    >
+                      {format(parseISO(selectedEvent.start_at), "MMM", { locale: fr })}
+                    </span>
+                    <span
+                      className="text-lg font-bold leading-none"
+                      style={{ color: selectedEvent.source === "external" ? "#5B21B6" : "#0f172a" }}
+                    >
+                      {format(parseISO(selectedEvent.start_at), "d")}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-bold text-slate-900 m-0 break-words">
+                      {selectedEvent.title}
+                    </h2>
+                    {selectedEvent.source === "external" && (
+                      <span className="text-xs text-violet-600 italic">
+                        {integration?.provider === "google" ? "Google Calendar" : "Outlook Calendar"}
+                      </span>
+                    )}
+                    {selectedEvent.status && STATUS_COLORS[selectedEvent.status] && (
+                      <span
+                        className="inline-block text-[0.6875rem] font-medium px-2 py-0.5 rounded-full mt-1"
+                        style={{
+                          backgroundColor: STATUS_COLORS[selectedEvent.status].bg,
+                          color: STATUS_COLORS[selectedEvent.status].color,
+                        }}
+                      >
+                        {STATUS_COLORS[selectedEvent.status].label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button onClick={() => setSelectedEvent(null)} className="btn-ghost p-1 shrink-0">
+                  <X size={20} />
                 </button>
               </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* Create modal */}
-      {showModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.5)" }} onClick={() => setShowModal(false)} />
-          <div style={{ position: "relative", backgroundColor: "white", borderRadius: "1rem", padding: "1.5rem", width: "100%", maxWidth: "28rem", margin: "0 1rem", maxHeight: "90vh", overflow: "auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <h2 style={{ fontSize: "1.125rem", fontWeight: 700, margin: 0 }}>Nouveau rendez-vous</h2>
-              <button onClick={() => setShowModal(false)} className="btn-ghost" style={{ padding: "0.25rem" }}>
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div>
-                <label className="label">Titre *</label>
-                <input className="input-field" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-                <div>
-                  <label className="label">Debut *</label>
-                  <input type="datetime-local" className="input-field" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} required />
+              {/* Details */}
+              <div className="flex flex-col gap-3.5">
+                {/* Date & Time */}
+                <div className="flex items-center gap-2.5">
+                  <Clock size={16} className="text-slate-500 shrink-0" />
+                  <div>
+                    <div className="text-sm text-slate-900 font-medium">
+                      {format(parseISO(selectedEvent.start_at), "EEEE d MMMM yyyy", { locale: fr }).replace(/^./, (c) => c.toUpperCase())}
+                    </div>
+                    <div className="text-[0.8125rem] text-slate-500">
+                      {formatTime(selectedEvent.start_at)} — {formatTime(selectedEvent.end_at)}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="label">Fin *</label>
-                  <input type="datetime-local" className="input-field" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} required />
-                </div>
+
+                {/* Location */}
+                {selectedEvent.location && (
+                  <div className="flex items-center gap-2.5">
+                    <MapPin size={16} className="text-slate-500 shrink-0" />
+                    <span className="text-sm text-slate-900">{selectedEvent.location}</span>
+                  </div>
+                )}
+
+                {/* Contact */}
+                {selectedEvent.contact && (
+                  <div className="flex items-center gap-2.5">
+                    <User size={16} className="text-slate-500 shrink-0" />
+                    <span className="text-sm text-slate-900">
+                      {selectedEvent.contact.first_name} {selectedEvent.contact.last_name}
+                    </span>
+                  </div>
+                )}
+
+                {/* Description */}
+                {selectedEvent.description && (
+                  <div className="bg-slate-50 rounded-lg px-4 py-3 text-[0.8125rem] text-slate-700 leading-relaxed whitespace-pre-wrap mt-1">
+                    {selectedEvent.description}
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="label">Contact</label>
-                <select className="input-field" value={form.contact_id} onChange={(e) => setForm({ ...form, contact_id: e.target.value })}>
-                  <option value="">Aucun contact</option>
-                  {contacts.map((c) => (
-                    <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label">Agent associe</label>
-                <select className="input-field" value={form.agent_id} onChange={(e) => setForm({ ...form, agent_id: e.target.value })}>
-                  <option value="">Aucun agent</option>
-                  {agents.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label">Lieu</label>
-                <input className="input-field" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">Description</label>
-                <textarea className="input-field" style={{ minHeight: "60px" }} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-              </div>
-              {integration && (
-                <div style={{ fontSize: "0.75rem", color: "#059669", display: "flex", alignItems: "center", gap: "0.375rem" }}>
-                  <Calendar size={12} />
-                  Sera aussi ajoute a {integration.provider === "google" ? "Google Calendar" : "Outlook Calendar"}
+
+              {/* Actions for local events */}
+              {selectedEvent.source === "local" && (
+                <div className="flex gap-2 justify-end mt-5 pt-4 border-t border-slate-100">
+                  {selectedEvent.status && (
+                    <select
+                      className="input-field text-[0.8125rem] py-1.5 px-2 w-auto font-medium border-none rounded-md"
+                      style={{
+                        backgroundColor: STATUS_COLORS[selectedEvent.status]?.bg || "#f3f4f6",
+                        color: STATUS_COLORS[selectedEvent.status]?.color || "#374151",
+                      }}
+                      value={selectedEvent.status}
+                      onChange={(e) => {
+                        handleStatusChange(selectedEvent.id, e.target.value);
+                        setSelectedEvent({ ...selectedEvent, status: e.target.value });
+                      }}
+                    >
+                      {Object.entries(STATUS_COLORS).map(([key, val]) => (
+                        <option key={key} value={key}>{val.label}</option>
+                      ))}
+                    </select>
+                  )}
+                  <button
+                    className="btn-secondary flex items-center gap-1.5 text-red-500 border-red-200 text-[0.8125rem]"
+                    onClick={() => {
+                      handleDelete(selectedEvent.id);
+                      setSelectedEvent(null);
+                    }}
+                  >
+                    <Trash2 size={14} />
+                    Supprimer
+                  </button>
                 </div>
               )}
-              <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Annuler</button>
-                <button type="submit" disabled={submitting} className="btn-primary">{submitting ? "Creation..." : "Creer"}</button>
-              </div>
-            </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
+      {/* Create modal */}
+      <AnimatePresence>
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-auto"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold m-0">Nouveau rendez-vous</h2>
+                <button onClick={() => setShowModal(false)} className="btn-ghost p-1">
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={handleCreate} className="flex flex-col gap-4">
+                <div>
+                  <label className="label">Titre *</label>
+                  <input className="input-field" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Debut *</label>
+                    <input type="datetime-local" className="input-field" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} required />
+                  </div>
+                  <div>
+                    <label className="label">Fin *</label>
+                    <input type="datetime-local" className="input-field" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} required />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Contact</label>
+                  <select className="input-field" value={form.contact_id} onChange={(e) => setForm({ ...form, contact_id: e.target.value })}>
+                    <option value="">Aucun contact</option>
+                    {contacts.map((c) => (
+                      <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Agent associe</label>
+                  <select className="input-field" value={form.agent_id} onChange={(e) => setForm({ ...form, agent_id: e.target.value })}>
+                    <option value="">Aucun agent</option>
+                    {agents.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Lieu</label>
+                  <input className="input-field" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Description</label>
+                  <textarea className="input-field min-h-[60px]" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                </div>
+                {integration && (
+                  <div className="text-xs text-emerald-600 flex items-center gap-1.5">
+                    <Calendar size={12} />
+                    Sera aussi ajoute a {integration.provider === "google" ? "Google Calendar" : "Outlook Calendar"}
+                  </div>
+                )}
+                <div className="flex gap-2 justify-end">
+                  <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Annuler</button>
+                  <button type="submit" disabled={submitting} className="btn-primary">{submitting ? "Creation..." : "Creer"}</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

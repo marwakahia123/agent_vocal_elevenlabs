@@ -42,15 +42,7 @@ export default function ConnexionPage() {
   return (
     <div className="auth-card">
       <div className="auth-logo">
-        <div style={{
-          width: "2.5rem",
-          height: "2.5rem",
-          borderRadius: "0.75rem",
-          background: "linear-gradient(135deg, #F97316, #EA580C)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}>
+        <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center">
           <Phone size={20} color="white" />
         </div>
         <div className="auth-logo-text">
@@ -58,14 +50,14 @@ export default function ConnexionPage() {
         </div>
       </div>
 
-      <h1 style={{ fontSize: "1.25rem", fontWeight: 700, textAlign: "center", color: "#111827", marginBottom: "0.25rem" }}>
+      <h1 className="text-xl font-bold text-center text-slate-900 mb-1">
         Connexion
       </h1>
-      <p style={{ fontSize: "0.875rem", color: "#6b7280", textAlign: "center", marginBottom: "1.5rem" }}>
+      <p className="text-sm text-slate-500 text-center mb-6">
         Connectez-vous a votre compte HallCall
       </p>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
           <label className="label">Email</label>
           <input
@@ -80,38 +72,27 @@ export default function ConnexionPage() {
 
         <div>
           <label className="label">Mot de passe</label>
-          <div style={{ position: "relative" }}>
+          <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="input-field"
+              className="input-field pr-10"
               placeholder="••••••••"
               required
-              style={{ paddingRight: "2.5rem" }}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              style={{
-                position: "absolute",
-                right: "0.5rem",
-                top: "50%",
-                transform: "translateY(-50%)",
-                border: "none",
-                background: "none",
-                cursor: "pointer",
-                color: "#9ca3af",
-                padding: "0.25rem",
-              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 border-none bg-transparent cursor-pointer text-slate-400 p-1"
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
         </div>
 
-        <div style={{ textAlign: "right" }}>
-          <Link href="/mot-de-passe-oublie" style={{ fontSize: "0.8125rem", color: "#F97316", textDecoration: "none" }}>
+        <div className="text-right">
+          <Link href="/mot-de-passe-oublie" className="text-[0.8125rem] text-slate-700 no-underline hover:text-slate-900">
             Mot de passe oublie ?
           </Link>
         </div>
@@ -119,16 +100,15 @@ export default function ConnexionPage() {
         <button
           type="submit"
           disabled={loading}
-          className="btn-primary"
-          style={{ width: "100%", padding: "0.75rem", fontSize: "0.9375rem" }}
+          className="btn-primary w-full py-3 text-[0.9375rem]"
         >
           {loading ? "Connexion..." : "Se connecter"}
         </button>
       </form>
 
-      <p style={{ fontSize: "0.875rem", color: "#6b7280", textAlign: "center", marginTop: "1.5rem" }}>
+      <p className="text-sm text-slate-500 text-center mt-6">
         Pas encore de compte ?{" "}
-        <Link href="/inscription" style={{ color: "#F97316", fontWeight: 500, textDecoration: "none" }}>
+        <Link href="/inscription" className="text-slate-900 font-medium no-underline hover:underline">
           Creer un compte
         </Link>
       </p>

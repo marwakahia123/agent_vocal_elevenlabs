@@ -23,7 +23,7 @@ import type { Widget, WidgetConfig } from "@/types/database";
 
 const DEFAULT_CONFIG: WidgetConfig = {
   position: "bottom-right",
-  primaryColor: "#F97316",
+  primaryColor: "#0f172a",
   greeting: "Bonjour ! Comment puis-je vous aider ?",
   width: 380,
   height: 600,
@@ -59,40 +59,17 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div
-      style={{
-        border: "1px dashed #d1d5db",
-        borderRadius: "0.75rem",
-        padding: "1.25rem",
-        marginBottom: "1rem",
-      }}
-    >
+    <div className="border border-dashed border-slate-300 rounded-xl p-5 mb-4">
       <button
         onClick={() => setOpen(!open)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          padding: 0,
-        }}
+        className="flex items-center justify-between w-full bg-transparent border-none cursor-pointer p-0"
       >
-        <h3
-          style={{
-            fontSize: "1rem",
-            fontWeight: 700,
-            color: "#111827",
-            margin: 0,
-          }}
-        >
+        <h3 className="text-base font-bold text-slate-900 m-0">
           {title}
         </h3>
         {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
       </button>
-      {open && <div style={{ marginTop: "1rem" }}>{children}</div>}
+      {open && <div className="mt-4">{children}</div>}
     </div>
   );
 }
@@ -109,36 +86,20 @@ function ColorInput({
 }) {
   return (
     <div>
-      <label
-        style={{
-          display: "block",
-          fontSize: "0.8125rem",
-          fontWeight: 500,
-          color: "#374151",
-          marginBottom: "0.375rem",
-        }}
-      >
+      <label className="block text-[0.8125rem] font-medium text-slate-700 mb-1.5">
         {label}
       </label>
-      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+      <div className="flex gap-2 items-center">
         <input
           type="color"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          style={{
-            width: "2.5rem",
-            height: "2.25rem",
-            border: "1px solid #d1d5db",
-            borderRadius: "0.375rem",
-            cursor: "pointer",
-            padding: "2px",
-          }}
+          className="w-10 h-9 border border-slate-300 rounded-md cursor-pointer p-0.5"
         />
         <input
-          className="input-field"
+          className="input-field flex-1 uppercase"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          style={{ flex: 1, textTransform: "uppercase" }}
         />
       </div>
     </div>
@@ -161,15 +122,7 @@ function NumberInput({
 }) {
   return (
     <div>
-      <label
-        style={{
-          display: "block",
-          fontSize: "0.8125rem",
-          fontWeight: 500,
-          color: "#374151",
-          marginBottom: "0.375rem",
-        }}
-      >
+      <label className="block text-[0.8125rem] font-medium text-slate-700 mb-1.5">
         {label}
       </label>
       <input
@@ -196,15 +149,7 @@ function TextInput({
 }) {
   return (
     <div>
-      <label
-        style={{
-          display: "block",
-          fontSize: "0.8125rem",
-          fontWeight: 500,
-          color: "#374151",
-          marginBottom: "0.375rem",
-        }}
-      >
+      <label className="block text-[0.8125rem] font-medium text-slate-700 mb-1.5">
         {label}
       </label>
       <input
@@ -227,31 +172,16 @@ function ToggleGroup({
   onChange: (v: string) => void;
 }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: "0",
-        borderRadius: "0.5rem",
-        overflow: "hidden",
-        border: "1px solid #d1d5db",
-        width: "fit-content",
-      }}
-    >
+    <div className="flex rounded-lg overflow-hidden border border-slate-300 w-fit">
       {options.map((opt) => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
-          style={{
-            padding: "0.5rem 1.25rem",
-            fontSize: "0.875rem",
-            fontWeight: 500,
-            border: "none",
-            cursor: "pointer",
-            backgroundColor:
-              value === opt.value ? "#1e293b" : "#fff",
-            color: value === opt.value ? "#fff" : "#374151",
-            transition: "all 0.15s",
-          }}
+          className={`px-5 py-2 text-sm font-medium border-none cursor-pointer transition-all ${
+            value === opt.value
+              ? "bg-slate-800 text-white"
+              : "bg-white text-slate-700 hover:bg-slate-50"
+          }`}
         >
           {opt.label}
         </button>
@@ -342,7 +272,7 @@ function WidgetPreview({
 
   const getStatusColor = () => {
     if (isConnected) {
-      if (mode === "speaking") return "#EA580C";
+      if (mode === "speaking") return "#0f172a";
       return "#22c55e";
     }
     return "#22c55e";
@@ -350,139 +280,76 @@ function WidgetPreview({
 
   return (
     <div
+      className="relative w-full h-[500px] bg-slate-900 rounded-xl overflow-hidden"
       style={{
-        position: "relative",
-        width: "100%",
-        height: "500px",
-        backgroundColor: "#0f172a",
-        borderRadius: "0.75rem",
-        overflow: "hidden",
-        backgroundImage:
-          "radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px)",
+        backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px)",
         backgroundSize: "20px 20px",
       }}
     >
       {/* Popup widget */}
       {showPopup && (
         <div
+          className="absolute bottom-20 right-4 shadow-2xl overflow-hidden"
           style={{
-            position: "absolute",
-            bottom: "5rem",
-            right: "1rem",
             width: config.variant === "compact" ? "280px" : "320px",
             backgroundColor: config.backgroundColor,
             borderRadius: `${config.borderRadius}px`,
             border: `1px solid ${config.borderColor}`,
-            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-            overflow: "hidden",
           }}
         >
           {/* Header */}
           <div
-            style={{
-              background: orbGradient,
-              padding: "1rem 1.25rem",
-              textAlign: "center",
-            }}
+            className="px-5 py-4 text-center"
+            style={{ background: orbGradient }}
           >
-            <div
-              style={{
-                fontSize: "0.875rem",
-                fontWeight: 700,
-                color: "#fff",
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-              }}
-            >
+            <div className="text-sm font-bold text-white tracking-wide uppercase">
               {displayName}
             </div>
-            <div
-              style={{
-                fontSize: "0.75rem",
-                color: "rgba(255,255,255,0.85)",
-                marginTop: "0.125rem",
-              }}
-            >
+            <div className="text-xs text-white/85 mt-0.5">
               {config.callToAction}
             </div>
           </div>
 
           {/* Body */}
-          <div style={{ padding: "1rem 1.25rem" }}>
+          <div className="px-5 py-4">
             {/* Status */}
             <div
-              style={{
-                backgroundColor: "#f8fafc",
-                borderRadius: "0.5rem",
-                padding: "0.75rem",
-                textAlign: "center",
-                marginBottom: "0.75rem",
-                border: `1px solid ${config.borderColor}`,
-              }}
+              className="bg-slate-50 rounded-lg p-3 text-center mb-3"
+              style={{ border: `1px solid ${config.borderColor}` }}
             >
               <div
-                style={{
-                  fontSize: "0.8125rem",
-                  color: config.textColor,
-                  fontWeight: 500,
-                }}
+                className="text-[0.8125rem] font-medium"
+                style={{ color: config.textColor }}
               >
                 {getStatusText()}
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.375rem",
-                  marginTop: "0.25rem",
-                }}
-              >
+              <div className="flex items-center justify-center gap-1.5 mt-1">
                 {isConnected && mode === "speaking" ? (
                   <>
-                    <Volume2 size={12} style={{ color: "#EA580C" }} />
-                    <span
-                      style={{
-                        fontSize: "0.75rem",
-                        color: "#EA580C",
-                        fontWeight: 500,
-                      }}
-                    >
+                    <Volume2 size={12} className="text-slate-900" />
+                    <span className="text-xs text-slate-900 font-medium">
                       Agent parle...
                     </span>
                   </>
                 ) : isConnected && mode === "listening" ? (
                   <>
-                    <Mic size={12} style={{ color: "#22c55e" }} />
-                    <span
-                      style={{
-                        fontSize: "0.75rem",
-                        color: "#22c55e",
-                        fontWeight: 500,
-                      }}
-                    >
+                    <Mic size={12} className="text-emerald-500" />
+                    <span className="text-xs text-emerald-500 font-medium">
                       En ecoute
                     </span>
                   </>
                 ) : (
                   <>
                     <span
+                      className="w-1.5 h-1.5 rounded-full"
                       style={{
-                        width: "6px",
-                        height: "6px",
-                        borderRadius: "50%",
                         backgroundColor: getStatusColor(),
-                        animation: connecting
-                          ? "pulse 1.5s infinite"
-                          : undefined,
+                        animation: connecting ? "pulse 1.5s infinite" : undefined,
                       }}
                     />
                     <span
-                      style={{
-                        fontSize: "0.75rem",
-                        color: getStatusColor(),
-                        fontWeight: 500,
-                      }}
+                      className="text-xs font-medium"
+                      style={{ color: getStatusColor() }}
                     >
                       {connecting ? "Connexion..." : isConnected ? "Connecte" : "En ligne"}
                     </span>
@@ -496,40 +363,17 @@ function WidgetPreview({
               <button
                 onClick={handleStartCall}
                 disabled={connecting || !elevenlabsAgentId}
+                className="w-full py-3 border-none text-white text-sm font-semibold flex items-center justify-center gap-2"
                 style={{
-                  width: "100%",
-                  padding: "0.75rem",
                   borderRadius: `${Math.min(config.borderRadius, 12)}px`,
-                  border: "none",
-                  background: connecting
-                    ? "#9ca3af"
-                    : orbGradient,
-                  color: "#fff",
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                  cursor:
-                    connecting || !elevenlabsAgentId
-                      ? "not-allowed"
-                      : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.5rem",
+                  background: connecting ? "#9ca3af" : orbGradient,
+                  cursor: connecting || !elevenlabsAgentId ? "not-allowed" : "pointer",
                   opacity: !elevenlabsAgentId ? 0.5 : 1,
                 }}
               >
                 {connecting ? (
                   <>
-                    <div
-                      style={{
-                        width: "16px",
-                        height: "16px",
-                        border: "2px solid rgba(255,255,255,0.3)",
-                        borderTopColor: "#fff",
-                        borderRadius: "50%",
-                        animation: "spin 1s linear infinite",
-                      }}
-                    />
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Connexion...
                   </>
                 ) : (
@@ -542,20 +386,10 @@ function WidgetPreview({
             ) : (
               <button
                 onClick={handleEndCall}
+                className="w-full py-3 border-none text-white text-sm font-semibold cursor-pointer flex items-center justify-center gap-2"
                 style={{
-                  width: "100%",
-                  padding: "0.75rem",
                   borderRadius: `${Math.min(config.borderRadius, 12)}px`,
-                  border: "none",
                   background: config.activeButtonColor,
-                  color: "#fff",
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.5rem",
                 }}
               >
                 <PhoneOff size={16} />
@@ -566,20 +400,12 @@ function WidgetPreview({
 
           {/* Footer */}
           <div
-            style={{
-              textAlign: "center",
-              padding: "0.5rem",
-              borderTop: `1px solid ${config.borderColor}`,
-            }}
+            className="text-center py-2"
+            style={{ borderTop: `1px solid ${config.borderColor}` }}
           >
-            <span
-              style={{
-                fontSize: "0.625rem",
-                color: "#9ca3af",
-              }}
-            >
+            <span className="text-[0.625rem] text-slate-400">
               Propulse par{" "}
-              <strong style={{ color: "#6b7280" }}>{displayName}</strong>
+              <strong className="text-slate-500">{displayName}</strong>
             </span>
           </div>
         </div>
@@ -593,22 +419,12 @@ function WidgetPreview({
           }
           setShowPopup(!showPopup);
         }}
+        className="absolute bottom-4 right-4 w-14 h-14 flex items-center justify-center text-white cursor-pointer transition-transform hover:scale-105"
         style={{
-          position: "absolute",
-          bottom: "1rem",
-          right: "1rem",
-          width: "56px",
-          height: "56px",
           borderRadius: `${config.buttonRadius}%`,
           background: orbGradient,
           border: `3px solid ${config.borderColor}`,
           boxShadow: `0 0 20px rgba(0,0,0,0.2), 0 0 40px ${config.avatarColor2}33`,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#fff",
-          transition: "transform 0.2s",
         }}
       >
         {showPopup ? <X size={22} /> : <Phone size={22} />}
@@ -703,23 +519,8 @@ export default function WidgetConfiguratorPage() {
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          padding: "5rem 0",
-        }}
-      >
-        <div
-          style={{
-            width: "2rem",
-            height: "2rem",
-            border: "4px solid #FFEDD5",
-            borderTopColor: "#F97316",
-            borderRadius: "50%",
-            animation: "spin 1s linear infinite",
-          }}
-        />
+      <div className="flex justify-center py-20">
+        <div className="spinner" />
       </div>
     );
   }
@@ -727,55 +528,27 @@ export default function WidgetConfiguratorPage() {
   return (
     <div>
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "1.5rem",
-          flexWrap: "wrap",
-          gap: "1rem",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+        <div className="flex items-center gap-4">
           <button
             onClick={() => router.push("/widgets")}
-            className="btn-ghost"
-            style={{ padding: "0.5rem" }}
+            className="btn-ghost p-2"
           >
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1
-              style={{
-                fontSize: "1.5rem",
-                fontWeight: 700,
-                color: "#111827",
-                margin: 0,
-              }}
-            >
+            <h1 className="text-xl font-semibold text-slate-900 m-0">
               Configurateur de widgets
             </h1>
-            <p
-              style={{
-                color: "#6b7280",
-                marginTop: "0.125rem",
-                fontSize: "0.875rem",
-              }}
-            >
+            <p className="text-sm text-slate-500 mt-0.5">
               {widgetName}
             </p>
           </div>
         </div>
         <button
           onClick={handleSave}
-          className="btn-primary"
+          className="btn-primary flex items-center gap-2"
           disabled={saving}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-          }}
         >
           <Save size={16} />
           {saving ? "Sauvegarde..." : "Sauvegarder"}
@@ -783,47 +556,18 @@ export default function WidgetConfiguratorPage() {
       </div>
 
       {/* Two-column layout */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "1.5rem",
-          alignItems: "start",
-        }}
-      >
+      <div className="grid grid-cols-2 gap-6 items-start">
         {/* Left: Configuration */}
         <div>
           {/* Embed code */}
           <Section title="Code d'integration">
-            <div
-              style={{
-                position: "relative",
-                backgroundColor: "#f1f5f9",
-                borderRadius: "0.5rem",
-                padding: "1rem",
-                fontFamily: "monospace",
-                fontSize: "0.8125rem",
-                lineHeight: 1.6,
-                color: "#334155",
-                wordBreak: "break-all",
-              }}
-            >
-              <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>
+            <div className="relative bg-slate-100 rounded-lg p-4 font-mono text-[0.8125rem] leading-relaxed text-slate-700 break-all">
+              <pre className="m-0 whitespace-pre-wrap">
                 {embedCode}
               </pre>
               <button
                 onClick={copyEmbed}
-                style={{
-                  position: "absolute",
-                  top: "0.5rem",
-                  right: "0.5rem",
-                  background: "white",
-                  border: "1px solid #d1d5db",
-                  borderRadius: "0.375rem",
-                  padding: "0.375rem",
-                  cursor: "pointer",
-                  color: "#6b7280",
-                }}
+                className="absolute top-2 right-2 bg-white border border-slate-300 rounded-md p-1.5 cursor-pointer text-slate-500 hover:text-slate-900 transition-colors"
                 title="Copier"
               >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
@@ -833,16 +577,8 @@ export default function WidgetConfiguratorPage() {
 
           {/* Apparence */}
           <Section title="Apparence">
-            <div style={{ marginBottom: "1rem" }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "0.8125rem",
-                  fontWeight: 500,
-                  color: "#374151",
-                  marginBottom: "0.375rem",
-                }}
-              >
+            <div className="mb-4">
+              <label className="block text-[0.8125rem] font-medium text-slate-700 mb-1.5">
                 Variante
               </label>
               <ToggleGroup
@@ -855,14 +591,7 @@ export default function WidgetConfiguratorPage() {
               />
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-                marginBottom: "1rem",
-              }}
-            >
+            <div className="grid grid-cols-2 gap-4 mb-4">
               <ColorInput
                 label="Couleur d'arriere-plan"
                 value={config.backgroundColor}
@@ -895,13 +624,7 @@ export default function WidgetConfiguratorPage() {
               />
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-              }}
-            >
+            <div className="grid grid-cols-2 gap-4">
               <NumberInput
                 label="Rayon de la bordure"
                 value={config.borderRadius}
@@ -921,16 +644,8 @@ export default function WidgetConfiguratorPage() {
 
           {/* Avatar */}
           <Section title="Avatar">
-            <div style={{ marginBottom: "1rem" }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "0.8125rem",
-                  fontWeight: 500,
-                  color: "#374151",
-                  marginBottom: "0.375rem",
-                }}
-              >
+            <div className="mb-4">
+              <label className="block text-[0.8125rem] font-medium text-slate-700 mb-1.5">
                 Type d&apos;avatar
               </label>
               <ToggleGroup
@@ -945,31 +660,15 @@ export default function WidgetConfiguratorPage() {
             </div>
 
             {config.avatarType === "orb" && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "1.5rem",
-                }}
-              >
+              <div className="flex items-center gap-6">
                 {/* Orb preview */}
                 <div
+                  className="w-20 h-20 rounded-full shrink-0"
                   style={{
-                    width: "80px",
-                    height: "80px",
-                    borderRadius: "50%",
                     background: `linear-gradient(135deg, ${config.avatarColor1}, ${config.avatarColor2})`,
-                    flexShrink: 0,
                   }}
                 />
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "1rem",
-                    flex: 1,
-                  }}
-                >
+                <div className="grid grid-cols-2 gap-4 flex-1">
                   <ColorInput
                     label="Premiere couleur"
                     value={config.avatarColor1}
@@ -995,13 +694,7 @@ export default function WidgetConfiguratorPage() {
 
           {/* Contenu du texte */}
           <Section title="Contenu du texte">
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "1rem",
-              }}
-            >
+            <div className="flex flex-col gap-4">
               <TextInput
                 label="Bouton de demarrage de l'appel"
                 value={config.startCallText}
@@ -1032,15 +725,8 @@ export default function WidgetConfiguratorPage() {
         </div>
 
         {/* Right: Live Preview */}
-        <div style={{ position: "sticky", top: "1rem" }}>
-          <div
-            style={{
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              color: "#374151",
-              marginBottom: "0.75rem",
-            }}
-          >
+        <div className="sticky top-4">
+          <div className="text-sm font-semibold text-slate-700 mb-3">
             Apercu en direct
           </div>
           <WidgetPreview
@@ -1049,14 +735,7 @@ export default function WidgetConfiguratorPage() {
             elevenlabsAgentId={elevenlabsAgentId}
           />
           {!elevenlabsAgentId && (
-            <p
-              style={{
-                fontSize: "0.75rem",
-                color: "#f59e0b",
-                marginTop: "0.5rem",
-                textAlign: "center",
-              }}
-            >
+            <p className="text-xs text-amber-500 mt-2 text-center">
               Aucun agent associe — associez un agent pour tester l&apos;appel
             </p>
           )}

@@ -76,31 +76,23 @@ export default function Sidebar() {
   const sidebarContent = (
     <>
       {/* Logo */}
-      <div style={{ padding: "1.25rem 1rem", borderBottom: "1px solid #1E293B" }}>
-        <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <div style={{
-            width: "2rem",
-            height: "2rem",
-            borderRadius: "0.5rem",
-            background: "linear-gradient(135deg, #F97316, #EA580C)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}>
+      <div className="px-4 py-5 border-b border-slate-200">
+        <Link href="/" className="no-underline flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
             <Phone size={16} color="white" />
           </div>
-          <span style={{ fontSize: "1.25rem", fontWeight: 700, color: "white" }}>
-            Hall<span style={{ color: "#F97316" }}>Call</span>
+          <span className="text-xl font-bold text-slate-900">
+            Hall<span className="text-slate-900">Call</span>
           </span>
         </Link>
       </div>
 
       {/* Navigation */}
-      <nav style={{ flex: 1, padding: "0.5rem 1rem", overflowY: "auto" }}>
+      <nav className="flex-1 px-4 py-2 overflow-y-auto">
         {navigation.map((section) => (
           <div key={section.title}>
             <div className="sidebar-section-title">{section.title}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.125rem" }}>
+            <div className="flex flex-col gap-0.5">
               {section.items.map((item) => (
                 <Link
                   key={item.href}
@@ -118,7 +110,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom section */}
-      <div style={{ padding: "1rem", borderTop: "1px solid #1E293B" }}>
+      <div className="p-4 border-t border-slate-200">
         <Link
           href="/abonnement"
           className={`sidebar-item ${isActive("/abonnement") ? "active" : ""}`}
@@ -128,14 +120,13 @@ export default function Sidebar() {
           <span>Abonnement</span>
         </Link>
         {profile && (
-          <div style={{ padding: "0.5rem 1rem", fontSize: "0.75rem", color: "#64748b", marginTop: "0.25rem" }}>
+          <div className="px-4 py-2 text-xs text-slate-400 mt-1">
             {profile.email}
           </div>
         )}
         <button
           onClick={() => signOut()}
-          className="sidebar-item"
-          style={{ color: "#ef4444", marginTop: "0.25rem" }}
+          className="sidebar-item text-red-500 mt-1"
         >
           <LogOut size={18} />
           <span>Deconnexion</span>
@@ -149,20 +140,7 @@ export default function Sidebar() {
       {/* Mobile toggle */}
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        style={{
-          position: "fixed",
-          top: "1rem",
-          left: "1rem",
-          zIndex: 50,
-          padding: "0.5rem",
-          borderRadius: "0.5rem",
-          background: "#0F172A",
-          color: "white",
-          border: "none",
-          cursor: "pointer",
-          display: "none",
-        }}
-        className="mobile-sidebar-toggle"
+        className="mobile-sidebar-toggle fixed top-4 left-4 z-50 p-2 rounded-lg bg-slate-900 text-white border-none cursor-pointer"
       >
         {mobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
@@ -171,12 +149,7 @@ export default function Sidebar() {
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            zIndex: 39,
-          }}
+          className="fixed inset-0 bg-black/50 z-[39]"
         />
       )}
 

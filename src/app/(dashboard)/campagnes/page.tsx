@@ -6,6 +6,7 @@ import { Plus, Megaphone, Play, Pause, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { pauseCampaign } from "@/lib/elevenlabs";
+import { AnimatePresence, motion } from "framer-motion";
 import type { CampaignGroup } from "@/types/database";
 
 export default function CampagnesPage() {
@@ -25,9 +26,12 @@ export default function CampagnesPage() {
   async function fetchCampaigns() {
     setLoading(true);
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
     const { data } = await supabase
       .from("campaign_groups")
       .select("*")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     setCampaigns((data as CampaignGroup[]) || []);
     setLoading(false);
@@ -35,7 +39,9 @@ export default function CampagnesPage() {
 
   async function fetchAgents() {
     const supabase = createClient();
-    const { data } = await supabase.from("agents").select("id, name").order("name");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from("agents").select("id, name").eq("user_id", user.id).order("name");
     if (data) setAgents(data);
   }
 
@@ -96,20 +102,20 @@ export default function CampagnesPage() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", padding: "5rem 0" }}>
-        <div style={{ width: "2rem", height: "2rem", border: "4px solid #FFEDD5", borderTopColor: "#F97316", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+      <div className="flex justify-center py-20">
+        <div className="spinner" />
       </div>
     );
   }
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem" }}>
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#111827", margin: 0 }}>Campagnes</h1>
-          <p style={{ color: "#6b7280", fontSize: "0.875rem", marginTop: "0.25rem" }}>Gerez vos campagnes d&apos;appels sortants</p>
+          <h1 className="text-xl font-semibold text-slate-900 m-0">Campagnes</h1>
+          <p className="text-sm text-slate-500 mt-1">Gerez vos campagnes d&apos;appels sortants</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
           <Plus size={16} /> Nouvelle campagne
         </button>
       </div>
@@ -121,32 +127,31 @@ export default function CampagnesPage() {
           <p className="empty-state-desc">Creez votre premiere campagne d&apos;appels</p>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "1rem" }}>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
           {campaigns.map((c) => {
             const s = statusColors[c.status] || statusColors.draft;
             const progress = c.total_contacts > 0 ? Math.round((c.contacts_called / c.total_contacts) * 100) : 0;
             return (
-              <div key={c.id} className="card" onClick={() => router.push(`/campagnes/${c.id}`)} style={{ cursor: "pointer" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem" }}>
+              <div key={c.id} className="card cursor-pointer" onClick={() => router.push(`/campagnes/${c.id}`)}>
+                <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 style={{ fontWeight: 600, color: "#111827", margin: 0 }}>{c.name}</h3>
-                    {c.description && <p style={{ fontSize: "0.8125rem", color: "#6b7280", margin: "0.25rem 0 0" }}>{c.description}</p>}
+                    <h3 className="font-semibold text-slate-900 m-0">{c.name}</h3>
+                    {c.description && <p className="text-[0.8125rem] text-slate-500 mt-1 m-0">{c.description}</p>}
                   </div>
                   <span className="badge" style={{ backgroundColor: s.bg, color: s.color }}>{s.label}</span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", fontSize: "0.8125rem", marginBottom: "1rem" }}>
-                  <div><span style={{ color: "#6b7280" }}>Contacts</span><br /><strong>{c.total_contacts}</strong></div>
-                  <div><span style={{ color: "#6b7280" }}>Appeles</span><br /><strong>{c.contacts_called}</strong></div>
-                  <div><span style={{ color: "#6b7280" }}>Repondus</span><br /><strong>{c.contacts_answered}</strong></div>
+                <div className="grid grid-cols-3 gap-2 text-[0.8125rem] mb-4">
+                  <div><span className="text-slate-500">Contacts</span><br /><strong>{c.total_contacts}</strong></div>
+                  <div><span className="text-slate-500">Appeles</span><br /><strong>{c.contacts_called}</strong></div>
+                  <div><span className="text-slate-500">Repondus</span><br /><strong>{c.contacts_answered}</strong></div>
                 </div>
-                <div style={{ height: "6px", backgroundColor: "#f3f4f6", borderRadius: "3px", overflow: "hidden", marginBottom: "0.75rem" }}>
-                  <div style={{ height: "100%", width: `${progress}%`, backgroundColor: "#F97316", borderRadius: "3px" }} />
+                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-3">
+                  <div className="h-full rounded-full bg-slate-900" style={{ width: `${progress}%` }} />
                 </div>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
+                <div className="flex gap-2">
                   {(c.status === "draft" || c.status === "paused") && (
                     <button
-                      className="btn-primary"
-                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.25rem", padding: "0.375rem" }}
+                      className="btn-primary flex-1 flex items-center justify-center gap-1 py-1.5"
                       onClick={(e) => { e.stopPropagation(); router.push(`/campagnes/${c.id}`); }}
                     >
                       {c.total_contacts > 0 ? <><Play size={14} /> Lancer</> : <><Eye size={14} /> Configurer</>}
@@ -154,16 +159,14 @@ export default function CampagnesPage() {
                   )}
                   {c.status === "running" && (
                     <button
-                      className="btn-secondary"
-                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.25rem", padding: "0.375rem" }}
+                      className="btn-secondary flex-1 flex items-center justify-center gap-1 py-1.5"
                       onClick={(e) => { e.stopPropagation(); handlePause(c.id); }}
                     >
                       <Pause size={14} /> Pause
                     </button>
                   )}
                   <button
-                    className="btn-ghost"
-                    style={{ display: "flex", alignItems: "center", gap: "0.25rem", padding: "0.375rem" }}
+                    className="btn-ghost flex items-center gap-1 py-1.5"
                     onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
                   >
                     <Trash2 size={14} />
@@ -175,37 +178,50 @@ export default function CampagnesPage() {
         </div>
       )}
 
-      {showModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.5)" }} onClick={() => setShowModal(false)} />
-          <div style={{ position: "relative", backgroundColor: "white", borderRadius: "1rem", padding: "1.5rem", width: "100%", maxWidth: "28rem", margin: "0 1rem" }}>
-            <h2 style={{ fontSize: "1.125rem", fontWeight: 700, marginBottom: "1rem" }}>Nouvelle campagne</h2>
-            <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div>
-                <label className="label">Nom *</label>
-                <input className="input-field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-              </div>
-              <div>
-                <label className="label">Description</label>
-                <textarea className="input-field" style={{ minHeight: "80px" }} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">Agent associe</label>
-                <select className="input-field" value={form.agent_id} onChange={(e) => setForm({ ...form, agent_id: e.target.value })}>
-                  <option value="">Aucun agent</option>
-                  {agents.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Annuler</button>
-                <button type="submit" disabled={submitting} className="btn-primary">{submitting ? "Creation..." : "Creer"}</button>
-              </div>
-            </form>
+      <AnimatePresence>
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl"
+            >
+              <h2 className="text-lg font-bold mb-4">Nouvelle campagne</h2>
+              <form onSubmit={handleCreate} className="flex flex-col gap-4">
+                <div>
+                  <label className="label">Nom *</label>
+                  <input className="input-field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+                </div>
+                <div>
+                  <label className="label">Description</label>
+                  <textarea className="input-field min-h-[80px]" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Agent associe</label>
+                  <select className="input-field" value={form.agent_id} onChange={(e) => setForm({ ...form, agent_id: e.target.value })}>
+                    <option value="">Aucun agent</option>
+                    {agents.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Annuler</button>
+                  <button type="submit" disabled={submitting} className="btn-primary">{submitting ? "Creation..." : "Creer"}</button>
+                </div>
+              </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

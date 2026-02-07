@@ -75,39 +75,31 @@ export default function AgentsPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#111827", margin: 0 }}>Mes Agents Vocaux</h1>
-          <p style={{ color: "#6b7280", marginTop: "0.25rem", fontSize: "0.875rem" }}>
+          <h1 className="text-xl font-semibold text-slate-900 m-0">Mes Agents Vocaux</h1>
+          <p className="text-sm text-slate-500 mt-1">
             Creez, gerez et testez vos agents conversationnels
           </p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem" }}>
-          <button onClick={fetchAgents} className="btn-secondary" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <RefreshCw style={{ height: "1rem", width: "1rem" }} />
+        <div className="flex gap-3">
+          <button onClick={fetchAgents} className="btn-secondary flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
             Actualiser
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="btn-primary"
-            style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            className="btn-primary flex items-center gap-2"
           >
-            <Plus style={{ height: "1rem", width: "1rem" }} />
+            <Plus className="h-4 w-4" />
             Nouvel Agent
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: "5rem 0" }}>
-          <div style={{
-            width: "2rem",
-            height: "2rem",
-            border: "4px solid #FFEDD5",
-            borderTopColor: "#F97316",
-            borderRadius: "50%",
-            animation: "spin 1s linear infinite",
-          }} />
+        <div className="flex justify-center py-20">
+          <div className="spinner" />
         </div>
       ) : (
         <AgentList agents={agents} onDelete={handleDelete} onEdit={handleEdit} />

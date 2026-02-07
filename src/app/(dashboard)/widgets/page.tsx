@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { AnimatePresence, motion } from "framer-motion";
 import type { Widget } from "@/types/database";
 
 interface WidgetWithAgent extends Widget {
@@ -36,7 +37,7 @@ function CreateWidgetModal({
     name: "",
     agent_id: "",
     position: "bottom-right" as "bottom-right" | "bottom-left",
-    primaryColor: "#F97316",
+    primaryColor: "#0f172a",
     greeting: "Bonjour ! Comment puis-je vous aider ?",
     domain_whitelist: "",
   });
@@ -46,7 +47,9 @@ function CreateWidgetModal({
   useEffect(() => {
     async function fetchAgents() {
       const supabase = createClient();
-      const { data } = await supabase.from("agents").select("id, name").order("name");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("agents").select("id, name").eq("user_id", user.id).order("name");
       if (data) setAgents(data);
     }
     fetchAgents();
@@ -96,119 +99,75 @@ function CreateWidgetModal({
   };
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 50,
-        padding: "1rem",
-      }}
-    >
-      <div
+    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
         onClick={(e) => e.stopPropagation()}
-        style={{
-          backgroundColor: "white",
-          borderRadius: "0.75rem",
-          width: "100%",
-          maxWidth: "500px",
-          maxHeight: "90vh",
-          overflow: "auto",
-          padding: "1.5rem",
-        }}
+        className="relative bg-white rounded-xl w-full max-w-[500px] max-h-[90vh] overflow-auto p-6 shadow-2xl"
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#111827", margin: 0 }}>
-            Creer un widget
-          </h2>
-          <button onClick={onClose} className="btn-ghost" style={{ padding: "0.25rem" }}>
-            <X size={20} />
-          </button>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-semibold text-slate-900 m-0">Creer un widget</h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X size={20} /></button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: "1rem" }}>
+          <div className="mb-4">
             <label className="label">Nom du widget *</label>
-            <input
-              className="input-field"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Ex: Widget site web"
-            />
+            <input className="input-field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Widget site web" />
           </div>
-          <div style={{ marginBottom: "1rem" }}>
+          <div className="mb-4">
             <label className="label">Agent associe</label>
-            <select
-              className="input-field"
-              value={form.agent_id}
-              onChange={(e) => setForm({ ...form, agent_id: e.target.value })}
-            >
+            <select className="input-field" value={form.agent_id} onChange={(e) => setForm({ ...form, agent_id: e.target.value })}>
               <option value="">Aucun agent</option>
               {agents.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="label">Position</label>
-              <select
-                className="input-field"
-                value={form.position}
-                onChange={(e) => setForm({ ...form, position: e.target.value as "bottom-right" | "bottom-left" })}
-              >
+              <select className="input-field" value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value as "bottom-right" | "bottom-left" })}>
                 <option value="bottom-right">Bas droite</option>
                 <option value="bottom-left">Bas gauche</option>
               </select>
             </div>
             <div>
               <label className="label">Couleur principale</label>
-              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+              <div className="flex gap-2 items-center">
                 <input
                   type="color"
                   value={form.primaryColor}
                   onChange={(e) => setForm({ ...form, primaryColor: e.target.value })}
-                  style={{ width: "2.5rem", height: "2.25rem", border: "1px solid #d1d5db", borderRadius: "0.375rem", cursor: "pointer" }}
+                  className="w-10 h-9 border border-slate-200 rounded-md cursor-pointer"
                 />
-                <input
-                  className="input-field"
-                  value={form.primaryColor}
-                  onChange={(e) => setForm({ ...form, primaryColor: e.target.value })}
-                  style={{ flex: 1 }}
-                />
+                <input className="input-field flex-1" value={form.primaryColor} onChange={(e) => setForm({ ...form, primaryColor: e.target.value })} />
               </div>
             </div>
           </div>
-          <div style={{ marginBottom: "1rem" }}>
+          <div className="mb-4">
             <label className="label">Message d&apos;accueil</label>
-            <textarea
-              className="input-field"
-              rows={2}
-              value={form.greeting}
-              onChange={(e) => setForm({ ...form, greeting: e.target.value })}
-              style={{ resize: "vertical" }}
-            />
+            <textarea className="input-field resize-y" rows={2} value={form.greeting} onChange={(e) => setForm({ ...form, greeting: e.target.value })} />
           </div>
-          <div style={{ marginBottom: "1.5rem" }}>
+          <div className="mb-6">
             <label className="label">Domaines autorises (separes par des virgules)</label>
-            <input
-              className="input-field"
-              value={form.domain_whitelist}
-              onChange={(e) => setForm({ ...form, domain_whitelist: e.target.value })}
-              placeholder="example.com, mon-site.fr"
-            />
+            <input className="input-field" value={form.domain_whitelist} onChange={(e) => setForm({ ...form, domain_whitelist: e.target.value })} placeholder="example.com, mon-site.fr" />
           </div>
-          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+          <div className="flex gap-3 justify-end">
             <button type="button" onClick={onClose} className="btn-secondary">Annuler</button>
             <button type="submit" className="btn-primary" disabled={saving}>
               {saving ? "Creation..." : "Creer le widget"}
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -223,9 +182,12 @@ export default function WidgetsPage() {
     setLoading(true);
     try {
       const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
       const { data, error } = await supabase
         .from("widgets")
         .select("*, agent:agents(name)")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       setWidgets((data as WidgetWithAgent[]) || []);
@@ -256,10 +218,7 @@ export default function WidgetsPage() {
   const toggleWidget = async (widget: WidgetWithAgent) => {
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("widgets")
-        .update({ is_active: !widget.is_active })
-        .eq("id", widget.id);
+      const { error } = await supabase.from("widgets").update({ is_active: !widget.is_active }).eq("id", widget.id);
       if (error) throw error;
       toast.success(widget.is_active ? "Widget desactive" : "Widget active");
       fetchWidgets();
@@ -277,42 +236,25 @@ export default function WidgetsPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#111827", margin: 0 }}>
-            Widgets
-          </h1>
-          <p style={{ color: "#6b7280", marginTop: "0.25rem", fontSize: "0.875rem" }}>
-            Integrez un agent vocal sur votre site web
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900 m-0">Widgets</h1>
+          <p className="text-sm text-slate-500 mt-1">Integrez un agent vocal sur votre site web</p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem" }}>
-          <button onClick={fetchWidgets} className="btn-secondary" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <RefreshCw size={16} />
-            Actualiser
+        <div className="flex gap-3">
+          <button onClick={fetchWidgets} className="btn-secondary flex items-center gap-2">
+            <RefreshCw size={16} /> Actualiser
           </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn-primary"
-            style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-          >
-            <Plus size={16} />
-            Nouveau widget
+          <button onClick={() => setShowCreateModal(true)} className="btn-primary flex items-center gap-2">
+            <Plus size={16} /> Nouveau widget
           </button>
         </div>
       </div>
 
       {/* Content */}
       {loading ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: "5rem 0" }}>
-          <div style={{
-            width: "2rem",
-            height: "2rem",
-            border: "4px solid #FFEDD5",
-            borderTopColor: "#F97316",
-            borderRadius: "50%",
-            animation: "spin 1s linear infinite",
-          }} />
+        <div className="flex justify-center py-20">
+          <div className="spinner" />
         </div>
       ) : widgets.length === 0 ? (
         <div className="card">
@@ -323,90 +265,62 @@ export default function WidgetsPage() {
           </div>
         </div>
       ) : (
-        <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))" }}>
+        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(380px,1fr))]">
           {widgets.map((widget) => (
             <div key={widget.id} className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                  <div
-                    style={{
-                      width: "2.5rem",
-                      height: "2.5rem",
-                      borderRadius: "0.5rem",
-                      backgroundColor: "#FFF7ED",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#F97316",
-                    }}
-                  >
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-900">
                     <Monitor size={20} />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 600, color: "#111827", fontSize: "1rem" }}>{widget.name}</div>
-                    <div style={{ fontSize: "0.8125rem", color: "#6b7280", display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                    <div className="font-semibold text-slate-900">{widget.name}</div>
+                    <div className="text-[0.8125rem] text-slate-500 flex items-center gap-1">
                       <Bot size={12} />
                       {(widget.agent as { name: string } | null)?.name || "Aucun agent"}
                     </div>
                   </div>
                 </div>
-                <span className={`badge ${widget.is_active ? "badge-success" : "badge-danger"}`} style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+                <span className={`badge ${widget.is_active ? "badge-success" : "badge-danger"} inline-flex items-center gap-1`}>
                   {widget.is_active ? <CheckCircle size={12} /> : <XCircle size={12} />}
                   {widget.is_active ? "Actif" : "Inactif"}
                 </span>
               </div>
 
               {/* Embed token */}
-              <div style={{ marginTop: "1rem", padding: "0.75rem", backgroundColor: "#f9fafb", borderRadius: "0.5rem", border: "1px solid #e5e7eb" }}>
-                <div style={{ fontSize: "0.75rem", color: "#6b7280", marginBottom: "0.25rem" }}>Token d&apos;integration</div>
-                <div style={{ fontFamily: "monospace", fontSize: "0.8125rem", color: "#374151", wordBreak: "break-all" }}>
+              <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="text-xs text-slate-500 mb-1">Token d&apos;integration</div>
+                <div className="font-mono text-[0.8125rem] text-slate-700 break-all">
                   {widget.embed_token}
                 </div>
               </div>
 
               {/* Domains */}
               {widget.domain_whitelist?.length > 0 && (
-                <div style={{ marginTop: "0.75rem", display: "flex", gap: "0.25rem", flexWrap: "wrap", alignItems: "center" }}>
-                  <Globe size={12} style={{ color: "#9ca3af" }} />
+                <div className="mt-3 flex gap-1 flex-wrap items-center">
+                  <Globe size={12} className="text-slate-400" />
                   {widget.domain_whitelist.map((domain) => (
-                    <span key={domain} className="badge badge-neutral" style={{ fontSize: "0.6875rem" }}>
-                      {domain}
-                    </span>
+                    <span key={domain} className="badge badge-neutral text-[0.6875rem]">{domain}</span>
                   ))}
                 </div>
               )}
 
               {/* Actions */}
-              <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", borderTop: "1px solid #f3f4f6", paddingTop: "0.75rem", flexWrap: "wrap" }}>
+              <div className="flex gap-2 mt-4 border-t border-slate-100 pt-3 flex-wrap">
                 <Link
                   href={`/widgets/${widget.id}`}
-                  className="btn-primary"
-                  style={{ fontSize: "0.8125rem", display: "flex", alignItems: "center", gap: "0.25rem", textDecoration: "none", flex: 1, justifyContent: "center" }}
+                  className="btn-primary text-[0.8125rem] flex items-center gap-1 no-underline flex-1 justify-center"
                 >
-                  <Settings2 size={14} />
-                  Configurer
+                  <Settings2 size={14} /> Configurer
                 </Link>
-                <button
-                  className="btn-ghost"
-                  style={{ fontSize: "0.8125rem", display: "flex", alignItems: "center", gap: "0.25rem" }}
-                  onClick={() => copyEmbed(widget.embed_token)}
-                >
-                  <Code size={14} />
-                  Code
+                <button className="btn-ghost text-[0.8125rem] flex items-center gap-1" onClick={() => copyEmbed(widget.embed_token)}>
+                  <Code size={14} /> Code
                 </button>
-                <button
-                  className="btn-ghost"
-                  style={{ fontSize: "0.8125rem", display: "flex", alignItems: "center", gap: "0.25rem" }}
-                  onClick={() => toggleWidget(widget)}
-                >
+                <button className="btn-ghost text-[0.8125rem] flex items-center gap-1" onClick={() => toggleWidget(widget)}>
                   {widget.is_active ? <XCircle size={14} /> : <CheckCircle size={14} />}
                   {widget.is_active ? "Desactiver" : "Activer"}
                 </button>
-                <button
-                  className="btn-ghost"
-                  style={{ fontSize: "0.8125rem", color: "#ef4444", display: "flex", alignItems: "center", gap: "0.25rem" }}
-                  onClick={() => handleDelete(widget.id)}
-                >
+                <button className="btn-ghost text-[0.8125rem] text-red-500 flex items-center gap-1" onClick={() => handleDelete(widget.id)}>
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -416,15 +330,14 @@ export default function WidgetsPage() {
       )}
 
       {/* Modal */}
-      {showCreateModal && (
-        <CreateWidgetModal
-          onClose={() => setShowCreateModal(false)}
-          onCreated={() => {
-            setShowCreateModal(false);
-            fetchWidgets();
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {showCreateModal && (
+          <CreateWidgetModal
+            onClose={() => setShowCreateModal(false)}
+            onCreated={() => { setShowCreateModal(false); fetchWidgets(); }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -39,15 +39,7 @@ export default function MotDePasseOubliePage() {
   return (
     <div className="auth-card">
       <div className="auth-logo">
-        <div style={{
-          width: "2.5rem",
-          height: "2.5rem",
-          borderRadius: "0.75rem",
-          background: "linear-gradient(135deg, #F97316, #EA580C)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}>
+        <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center">
           <Phone size={20} color="white" />
         </div>
         <div className="auth-logo-text">
@@ -55,14 +47,14 @@ export default function MotDePasseOubliePage() {
         </div>
       </div>
 
-      <h1 style={{ fontSize: "1.25rem", fontWeight: 700, textAlign: "center", color: "#111827", marginBottom: "0.25rem" }}>
+      <h1 className="text-xl font-bold text-center text-slate-900 mb-1">
         Mot de passe oublie
       </h1>
-      <p style={{ fontSize: "0.875rem", color: "#6b7280", textAlign: "center", marginBottom: "1.5rem" }}>
+      <p className="text-sm text-slate-500 text-center mb-6">
         Entrez votre email pour recevoir un code de reinitialisation
       </p>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
           <label className="label">Email</label>
           <input
@@ -78,8 +70,7 @@ export default function MotDePasseOubliePage() {
         <button
           type="submit"
           disabled={loading}
-          className="btn-primary"
-          style={{ width: "100%", padding: "0.75rem", fontSize: "0.9375rem" }}
+          className="btn-primary w-full py-3 text-[0.9375rem]"
         >
           {loading ? "Envoi..." : "Envoyer le code"}
         </button>
@@ -87,16 +78,7 @@ export default function MotDePasseOubliePage() {
 
       <Link
         href="/connexion"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "0.375rem",
-          marginTop: "1rem",
-          color: "#6b7280",
-          fontSize: "0.875rem",
-          textDecoration: "none",
-        }}
+        className="flex items-center justify-center gap-1.5 mt-4 text-slate-500 text-sm no-underline hover:text-slate-900 transition-colors"
       >
         <ArrowLeft size={14} />
         Retour a la connexion

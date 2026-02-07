@@ -13,9 +13,12 @@ export default function SmsHistoriquePage() {
   useEffect(() => {
     async function fetch() {
       const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
       const { data } = await supabase
         .from("sms_history")
         .select("*, contact:contacts(first_name, last_name)")
+        .eq("user_id", user.id)
         .order("sent_at", { ascending: false })
         .limit(100);
       setMessages((data as SmsHistoryEntry[]) || []);
@@ -33,17 +36,17 @@ export default function SmsHistoriquePage() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", padding: "5rem 0" }}>
-        <div style={{ width: "2rem", height: "2rem", border: "4px solid #FFEDD5", borderTopColor: "#F97316", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+      <div className="flex justify-center py-20">
+        <div className="spinner" />
       </div>
     );
   }
 
   return (
     <div>
-      <div style={{ marginBottom: "1.5rem" }}>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#111827", margin: 0 }}>Historique SMS</h1>
-        <p style={{ color: "#6b7280", fontSize: "0.875rem", marginTop: "0.25rem" }}>Consultez l&apos;historique des SMS envoyes</p>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-slate-900 m-0">Historique SMS</h1>
+        <p className="text-sm text-slate-500 mt-1">Consultez l&apos;historique des SMS envoyes</p>
       </div>
 
       {messages.length === 0 ? (
@@ -71,23 +74,23 @@ export default function SmsHistoriquePage() {
                   <tr key={msg.id}>
                     <td>
                       <div>
-                        <div style={{ fontWeight: 500, color: "#111827" }}>
+                        <div className="font-medium text-slate-900">
                           {contact ? `${contact.first_name} ${contact.last_name}` : formatPhone(msg.phone_to)}
                         </div>
-                        {contact && <div style={{ fontSize: "0.75rem", color: "#9ca3af" }}>{formatPhone(msg.phone_to)}</div>}
+                        {contact && <div className="text-xs text-slate-400">{formatPhone(msg.phone_to)}</div>}
                       </div>
                     </td>
                     <td>
-                      <p style={{ margin: 0, maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <p className="m-0 max-w-[300px] overflow-hidden text-ellipsis whitespace-nowrap">
                         {msg.content}
                       </p>
                     </td>
                     <td>
-                      <span style={{ display: "flex", alignItems: "center", gap: "0.25rem", color: s.color, fontSize: "0.8125rem" }}>
+                      <span className="flex items-center gap-1 text-[0.8125rem]" style={{ color: s.color }}>
                         {s.icon} {s.label}
                       </span>
                     </td>
-                    <td style={{ fontSize: "0.8125rem", color: "#6b7280" }}>{formatDateTime(msg.sent_at)}</td>
+                    <td className="text-[0.8125rem] text-slate-500">{formatDateTime(msg.sent_at)}</td>
                   </tr>
                 );
               })}

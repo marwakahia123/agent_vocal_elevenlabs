@@ -16,29 +16,16 @@ export default function AgentCard({ agent, onDelete, onEdit }: Props) {
   const firstMessage = agent.conversation_config?.agent?.first_message || "";
 
   return (
-    <div
-      className="card"
-      style={{ transition: "box-shadow 0.2s", cursor: "default" }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1)";
-        const deleteBtn = e.currentTarget.querySelector(".delete-btn") as HTMLElement;
-        if (deleteBtn) deleteBtn.style.opacity = "1";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = "0 1px 2px 0 rgba(0, 0, 0, 0.05)";
-        const deleteBtn = e.currentTarget.querySelector(".delete-btn") as HTMLElement;
-        if (deleteBtn) deleteBtn.style.opacity = "0";
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <div style={{ backgroundColor: "#FFF7ED", padding: "0.5rem", borderRadius: "0.5rem" }}>
-            <Bot style={{ height: "1.5rem", width: "1.5rem", color: "#F97316" }} />
+    <div className="card transition-shadow hover:shadow-md group">
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <div className="bg-slate-100 p-2 rounded-lg">
+            <Bot className="h-6 w-6 text-slate-900" />
           </div>
           <div>
-            <h3 style={{ fontWeight: 600, color: "#111827", margin: 0 }}>{agent.name}</h3>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.75rem", color: "#6b7280", marginTop: "0.125rem" }}>
-              <Globe style={{ height: "0.75rem", width: "0.75rem" }} />
+            <h3 className="font-semibold text-slate-900 m-0">{agent.name}</h3>
+            <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+              <Globe className="h-3 w-3" />
               <span>{language.toUpperCase()}</span>
             </div>
           </div>
@@ -47,24 +34,17 @@ export default function AgentCard({ agent, onDelete, onEdit }: Props) {
       </div>
 
       {firstMessage && (
-        <div style={{ marginTop: "1rem", display: "flex", alignItems: "flex-start", gap: "0.5rem", fontSize: "0.875rem", color: "#4b5563" }}>
-          <MessageSquare style={{ height: "1rem", width: "1rem", marginTop: "0.125rem", flexShrink: 0, color: "#9ca3af" }} />
-          <p style={{
-            margin: 0,
-            overflow: "hidden",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-          }}>{firstMessage}</p>
+        <div className="mt-4 flex items-start gap-2 text-sm text-slate-600">
+          <MessageSquare className="h-4 w-4 mt-0.5 shrink-0 text-slate-400" />
+          <p className="m-0 overflow-hidden line-clamp-2">{firstMessage}</p>
         </div>
       )}
 
-      <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid #f3f4f6", display: "flex", gap: "0.5rem" }}>
+      <div className="mt-4 pt-4 border-t border-slate-100 flex gap-2">
         {onEdit && (
           <button
             onClick={() => onEdit(agent)}
-            className="btn-secondary"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.375rem", fontSize: "0.875rem", flex: 1 }}
+            className="btn-secondary flex-1 flex items-center justify-center gap-1.5 text-sm"
           >
             <Edit2 size={14} />
             Modifier
@@ -72,8 +52,7 @@ export default function AgentCard({ agent, onDelete, onEdit }: Props) {
         )}
         <Link
           href={`/agents/${agent.agent_id}`}
-          className="btn-primary"
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem", textDecoration: "none", flex: 1 }}
+          className="btn-primary flex-1 flex items-center justify-center text-sm no-underline"
         >
           Tester
         </Link>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
-import { Loader2, Upload, Link2, X, FileText, Globe } from "lucide-react";
+import { Loader2, Upload, Link2, X, FileText, Globe, Play, Square } from "lucide-react";
 import { SUPPORTED_LANGUAGES, LLM_MODELS, DEFAULT_FORM_VALUES } from "@/lib/constants";
 import { listVoices, createAgent, updateAgent, uploadKnowledgeBase } from "@/lib/elevenlabs";
+import { createClient } from "@/lib/supabase/client";
 import type { Voice, CreateAgentFormData } from "@/types/elevenlabs";
 
 interface Props {
@@ -35,6 +36,9 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
     speed: initialData?.speed ?? DEFAULT_FORM_VALUES.speed,
   });
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+
   useEffect(() => {
     listVoices()
       .then((data) => {
@@ -48,6 +52,76 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
       .finally(() => setLoadingVoices(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
+  const toggleVoicePreview = useCallback(async () => {
+    if (!form.voiceId) return;
+
+    // If already playing, stop it
+    if (playingVoiceId && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setPlayingVoiceId(null);
+      return;
+    }
+
+    // Determine text to speak
+    const textToSpeak = form.firstMessage.trim() || "Bonjour, comment puis-je vous aider ?";
+
+    // Stop any current playback
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+
+    setLoadingPreview(true);
+    setPlayingVoiceId(form.voiceId);
+
+    try {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error("Non connecte"); return; }
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/text-to-speech`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ voice_id: form.voiceId, text: textToSpeak }),
+        }
+      );
+
+      if (!res.ok) throw new Error("Erreur TTS");
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => { setPlayingVoiceId(null); audioRef.current = null; URL.revokeObjectURL(url); };
+      audio.onerror = () => { setPlayingVoiceId(null); audioRef.current = null; URL.revokeObjectURL(url); };
+      await audio.play();
+    } catch {
+      setPlayingVoiceId(null);
+      audioRef.current = null;
+      toast.error("Impossible de generer l'apercu vocal");
+    } finally {
+      setLoadingPreview(false);
+    }
+  }, [form.voiceId, form.firstMessage, playingVoiceId]);
 
   const updateField = (field: keyof CreateAgentFormData, value: string | number) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -103,7 +177,7 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       {/* Nom de l'agent */}
       <div>
         <label className="label">Nom de l&apos;agent *</label>
@@ -121,13 +195,12 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
       <div>
         <label className="label">Prompt systeme</label>
         <textarea
-          className="input-field"
-          style={{ minHeight: "120px", resize: "vertical" }}
+          className="input-field min-h-[120px] resize-y"
           placeholder="Decrivez le role et le comportement de l'agent..."
           value={form.systemPrompt}
           onChange={(e) => updateField("systemPrompt", e.target.value)}
         />
-        <p style={{ fontSize: "0.75rem", color: "#9ca3af", marginTop: "0.25rem" }}>
+        <p className="text-xs text-slate-400 mt-1">
           Instructions qui definissent la personnalite et les capacites de l&apos;agent
         </p>
       </div>
@@ -142,13 +215,13 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
           value={form.firstMessage}
           onChange={(e) => updateField("firstMessage", e.target.value)}
         />
-        <p style={{ fontSize: "0.75rem", color: "#9ca3af", marginTop: "0.25rem" }}>
+        <p className="text-xs text-slate-400 mt-1">
           Le message que l&apos;agent prononcera au debut de la conversation
         </p>
       </div>
 
       {/* Langue et Voix */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+      <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">Langue</label>
           <select
@@ -166,24 +239,53 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
         <div>
           <label className="label">Voix *</label>
           {loadingVoices ? (
-            <div className="input-field" style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#9ca3af" }}>
-              <Loader2 style={{ height: "1rem", width: "1rem", animation: "spin 1s linear infinite" }} />
+            <div className="input-field flex items-center gap-2 text-slate-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
               Chargement...
             </div>
           ) : (
-            <select
-              className="input-field"
-              value={form.voiceId}
-              onChange={(e) => updateField("voiceId", e.target.value)}
-              required
-            >
-              <option value="">-- Selectionnez une voix --</option>
-              {voices.map((voice) => (
-                <option key={voice.voice_id} value={voice.voice_id}>
-                  {voice.name} ({voice.category})
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                className="input-field flex-1"
+                value={form.voiceId}
+                onChange={(e) => {
+                  // Stop current preview if voice changes
+                  if (audioRef.current) {
+                    audioRef.current.pause();
+                    audioRef.current = null;
+                    setPlayingVoiceId(null);
+                  }
+                  updateField("voiceId", e.target.value);
+                }}
+                required
+              >
+                <option value="">-- Selectionnez une voix --</option>
+                {voices.map((voice) => (
+                  <option key={voice.voice_id} value={voice.voice_id}>
+                    {voice.name} ({voice.category})
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={toggleVoicePreview}
+                disabled={!form.voiceId || loadingPreview}
+                className={`shrink-0 w-10 h-10 rounded-lg border flex items-center justify-center transition-colors ${
+                  playingVoiceId === form.voiceId
+                    ? "bg-slate-900 text-white border-slate-900"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900"
+                } disabled:opacity-40 disabled:cursor-not-allowed`}
+                title={playingVoiceId === form.voiceId ? "Arreter" : "Ecouter le premier message"}
+              >
+                {loadingPreview ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : playingVoiceId === form.voiceId ? (
+                  <Square size={14} />
+                ) : (
+                  <Play size={14} />
+                )}
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -216,27 +318,27 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
           step="0.1"
           value={form.temperature}
           onChange={(e) => updateField("temperature", parseFloat(e.target.value))}
-          style={{ width: "100%", accentColor: "#F97316" }}
+          className="w-full accent-slate-900"
         />
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "#9ca3af" }}>
+        <div className="flex justify-between text-xs text-slate-400">
           <span>Precis</span>
           <span>Creatif</span>
         </div>
       </div>
 
       {/* Parametres avances */}
-      <details style={{ border: "1px solid #e5e7eb", borderRadius: "0.5rem" }}>
-        <summary style={{ padding: "0.75rem 1rem", cursor: "pointer", fontSize: "0.875rem", fontWeight: 500, color: "#374151" }}>
+      <details className="border border-slate-200 rounded-lg">
+        <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-slate-700">
           Parametres avances de la voix
         </summary>
-        <div style={{ padding: "0 1rem 1rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div className="px-4 pb-4 flex flex-col gap-4">
           <div>
             <label className="label">Stabilite : {form.stability}</label>
             <input
               type="range" min="0" max="1" step="0.05"
               value={form.stability}
               onChange={(e) => updateField("stability", parseFloat(e.target.value))}
-              style={{ width: "100%", accentColor: "#F97316" }}
+              className="w-full accent-slate-900"
             />
           </div>
           <div>
@@ -245,7 +347,7 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
               type="range" min="0" max="1" step="0.05"
               value={form.similarityBoost}
               onChange={(e) => updateField("similarityBoost", parseFloat(e.target.value))}
-              style={{ width: "100%", accentColor: "#F97316" }}
+              className="w-full accent-slate-900"
             />
           </div>
           <div>
@@ -254,7 +356,7 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
               type="range" min="0.5" max="2" step="0.1"
               value={form.speed}
               onChange={(e) => updateField("speed", parseFloat(e.target.value))}
-              style={{ width: "100%", accentColor: "#F97316" }}
+              className="w-full accent-slate-900"
             />
           </div>
           <div>
@@ -272,14 +374,14 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
       </details>
 
       {/* Base de connaissances */}
-      <details style={{ border: "1px solid #e5e7eb", borderRadius: "0.5rem" }}>
-        <summary style={{ padding: "0.75rem 1rem", cursor: "pointer", fontSize: "0.875rem", fontWeight: 500, color: "#374151" }}>
+      <details className="border border-slate-200 rounded-lg">
+        <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-slate-700">
           Base de connaissances (PDF, TXT, URLs)
         </summary>
-        <div style={{ padding: "0 1rem 1rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div className="px-4 pb-4 flex flex-col gap-4">
           {/* File upload */}
           <div>
-            <label className="label" style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+            <label className="label flex items-center gap-1">
               <Upload size={14} />
               Fichiers (PDF, TXT)
             </label>
@@ -292,34 +394,26 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
                 setKbFiles((prev) => [...prev, ...files]);
                 e.target.value = "";
               }}
-              style={{ fontSize: "0.875rem" }}
+              className="text-sm"
             />
             {kbFiles.length > 0 && (
-              <div style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <div className="mt-2 flex flex-col gap-1">
                 {kbFiles.map((file, idx) => (
                   <div
                     key={idx}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "0.375rem 0.5rem",
-                      backgroundColor: "#f9fafb",
-                      borderRadius: "0.375rem",
-                      fontSize: "0.8125rem",
-                    }}
+                    className="flex items-center justify-between px-2 py-1.5 bg-slate-50 rounded-md text-[0.8125rem]"
                   >
-                    <span style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
-                      <FileText size={14} style={{ color: "#F97316" }} />
+                    <span className="flex items-center gap-1.5">
+                      <FileText size={14} className="text-slate-900" />
                       {file.name}
-                      <span style={{ color: "#9ca3af" }}>
+                      <span className="text-slate-400">
                         ({(file.size / 1024).toFixed(0)} Ko)
                       </span>
                     </span>
                     <button
                       type="button"
                       onClick={() => setKbFiles((prev) => prev.filter((_, i) => i !== idx))}
-                      style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: "0.125rem" }}
+                      className="text-red-500 bg-transparent border-none cursor-pointer p-0.5"
                     >
                       <X size={14} />
                     </button>
@@ -331,15 +425,14 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
 
           {/* URL input */}
           <div>
-            <label className="label" style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+            <label className="label flex items-center gap-1">
               <Link2 size={14} />
               URLs
             </label>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
+            <div className="flex gap-2">
               <input
                 type="url"
-                className="input-field"
-                style={{ flex: 1 }}
+                className="input-field flex-1"
                 placeholder="https://example.com/documentation"
                 value={kbUrlInput}
                 onChange={(e) => setKbUrlInput(e.target.value)}
@@ -367,28 +460,20 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
               </button>
             </div>
             {kbUrls.length > 0 && (
-              <div style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <div className="mt-2 flex flex-col gap-1">
                 {kbUrls.map((url, idx) => (
                   <div
                     key={idx}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "0.375rem 0.5rem",
-                      backgroundColor: "#f9fafb",
-                      borderRadius: "0.375rem",
-                      fontSize: "0.8125rem",
-                    }}
+                    className="flex items-center justify-between px-2 py-1.5 bg-slate-50 rounded-md text-[0.8125rem]"
                   >
-                    <span style={{ display: "flex", alignItems: "center", gap: "0.375rem", overflow: "hidden" }}>
-                      <Globe size={14} style={{ color: "#F97316", flexShrink: 0 }} />
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{url}</span>
+                    <span className="flex items-center gap-1.5 overflow-hidden">
+                      <Globe size={14} className="text-slate-900 shrink-0" />
+                      <span className="overflow-hidden text-ellipsis whitespace-nowrap">{url}</span>
                     </span>
                     <button
                       type="button"
                       onClick={() => setKbUrls((prev) => prev.filter((_, i) => i !== idx))}
-                      style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: "0.125rem", flexShrink: 0 }}
+                      className="text-red-500 bg-transparent border-none cursor-pointer p-0.5 shrink-0"
                     >
                       <X size={14} />
                     </button>
@@ -398,15 +483,15 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
             )}
           </div>
 
-          <p style={{ fontSize: "0.75rem", color: "#9ca3af", margin: 0 }}>
+          <p className="text-xs text-slate-400 m-0">
             Les fichiers et URLs seront ajoutes comme base de connaissances apres la creation de l&apos;agent.
           </p>
         </div>
       </details>
 
       {/* Submit */}
-      <button type="submit" disabled={submitting} className="btn-primary" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", width: "100%", padding: "0.75rem" }}>
-        {submitting && <Loader2 style={{ height: "1rem", width: "1rem", animation: "spin 1s linear infinite" }} />}
+      <button type="submit" disabled={submitting} className="btn-primary w-full py-3 flex items-center justify-center gap-2">
+        {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         {submitting
           ? (editMode ? "Mise a jour..." : "Creation en cours...")
           : (editMode ? "Enregistrer les modifications" : "Creer l'agent")}

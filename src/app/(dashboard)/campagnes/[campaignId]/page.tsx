@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { AnimatePresence, motion } from "framer-motion";
 import type { CampaignGroup, CampaignContact, Contact } from "@/types/database";
 
 interface CampaignWithAgent extends CampaignGroup {
@@ -117,10 +118,13 @@ export default function CampaignDetailPage() {
     setSelectedIds(new Set());
     setContactSearch("");
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     const existingIds = contacts.map((c) => c.contact_id);
     const { data } = await supabase
       .from("contacts")
       .select("*")
+      .eq("user_id", user.id)
       .not("phone", "is", null)
       .order("first_name");
     if (data) {
@@ -208,14 +212,14 @@ export default function CampaignDetailPage() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", padding: "5rem 0" }}>
-        <div style={{ width: "2rem", height: "2rem", border: "4px solid #FFEDD5", borderTopColor: "#F97316", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+      <div className="flex justify-center py-20">
+        <div className="spinner" />
       </div>
     );
   }
 
   if (!campaign) {
-    return <div style={{ textAlign: "center", padding: "3rem", color: "#6b7280" }}>Campagne introuvable</div>;
+    return <div className="text-center py-12 text-slate-500">Campagne introuvable</div>;
   }
 
   const s = campaignStatusMap[campaign.status] || campaignStatusMap.draft;
@@ -234,88 +238,88 @@ export default function CampaignDetailPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
-        <button onClick={() => router.push("/campagnes")} className="btn-ghost" style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+      <div className="flex items-center gap-4 mb-6 flex-wrap">
+        <button onClick={() => router.push("/campagnes")} className="btn-ghost flex items-center gap-1">
           <ArrowLeft size={16} /> Retour
         </button>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#111827", margin: 0 }}>{campaign.name}</h1>
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold text-slate-900 m-0">{campaign.name}</h1>
             <span className="badge" style={{ backgroundColor: s.bg, color: s.color }}>{s.label}</span>
           </div>
-          {campaign.description && <p style={{ color: "#6b7280", fontSize: "0.875rem", margin: "0.25rem 0 0" }}>{campaign.description}</p>}
-          {campaign.agent && <p style={{ color: "#9ca3af", fontSize: "0.8rem", margin: "0.25rem 0 0" }}>Agent : {(campaign.agent as { name: string }).name}</p>}
+          {campaign.description && <p className="text-sm text-slate-500 mt-1 m-0">{campaign.description}</p>}
+          {campaign.agent && <p className="text-xs text-slate-400 mt-1 m-0">Agent : {(campaign.agent as { name: string }).name}</p>}
         </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div className="flex gap-2">
           {(campaign.status === "draft" || campaign.status === "paused") && (
-            <button onClick={campaign.status === "paused" ? handleResume : handleLaunch} disabled={launching} className="btn-primary" style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-              {launching ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Play size={14} />}
+            <button onClick={campaign.status === "paused" ? handleResume : handleLaunch} disabled={launching} className="btn-primary flex items-center gap-1">
+              {launching ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
               {campaign.status === "paused" ? "Reprendre" : "Lancer"}
             </button>
           )}
           {campaign.status === "running" && (
-            <button onClick={handlePause} className="btn-secondary" style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+            <button onClick={handlePause} className="btn-secondary flex items-center gap-1">
               <Pause size={14} /> Pause
             </button>
           )}
-          <button onClick={openAddModal} className="btn-secondary" style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+          <button onClick={openAddModal} className="btn-secondary flex items-center gap-1">
             <UserPlus size={14} /> Ajouter contacts
           </button>
         </div>
       </div>
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-4 mb-6">
         {[
           { icon: Users, label: "Total", value: campaign.total_contacts, color: "#6b7280" },
           { icon: Phone, label: "Appeles", value: campaign.contacts_called, color: "#2563EB" },
           { icon: CheckCircle, label: "Repondus", value: campaign.contacts_answered, color: "#059669" },
           { icon: XCircle, label: "Echoues", value: campaign.contacts_failed, color: "#DC2626" },
           { icon: Clock, label: "Duree totale", value: formatDuration(contacts.reduce((sum, c) => sum + (c.call_duration_seconds || 0), 0) || null), color: "#7C3AED" },
-          { icon: DollarSign, label: "Cout", value: `${campaign.cost_euros.toFixed(2)} EUR`, color: "#F97316" },
+          { icon: DollarSign, label: "Cout", value: `${campaign.cost_euros.toFixed(2)} EUR`, color: "#0f172a" },
         ].map(({ icon: Icon, label, value, color }) => (
-          <div key={label} className="card" style={{ padding: "1rem", textAlign: "center" }}>
-            <Icon size={20} style={{ color, margin: "0 auto 0.5rem" }} />
-            <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "#111827" }}>{value}</div>
-            <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>{label}</div>
+          <div key={label} className="card p-4 text-center">
+            <Icon size={20} className="mx-auto mb-2" style={{ color }} />
+            <div className="text-xl font-bold text-slate-900">{value}</div>
+            <div className="text-xs text-slate-500">{label}</div>
           </div>
         ))}
       </div>
 
       {/* Progress bar */}
-      <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", marginBottom: "0.5rem" }}>
-          <span style={{ color: "#6b7280" }}>Progression</span>
-          <span style={{ fontWeight: 600, color: "#111827" }}>{progress}%</span>
+      <div className="card p-4 mb-6">
+        <div className="flex justify-between text-[0.8125rem] mb-2">
+          <span className="text-slate-500">Progression</span>
+          <span className="font-semibold text-slate-900">{progress}%</span>
         </div>
-        <div style={{ height: "8px", backgroundColor: "#f3f4f6", borderRadius: "4px", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${progress}%`, backgroundColor: "#F97316", borderRadius: "4px", transition: "width 0.5s ease" }} />
+        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-full rounded-full bg-slate-900 transition-all duration-500" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
       {/* Contacts table */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <div style={{ padding: "1rem", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0, color: "#111827" }}>
+      <div className="card p-0 overflow-hidden">
+        <div className="p-4 border-b border-slate-200 flex justify-between items-center">
+          <h2 className="text-base font-bold m-0 text-slate-900">
             Contacts ({contacts.length})
           </h2>
         </div>
         {contacts.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "3rem 1rem", color: "#9ca3af" }}>
-            <Users size={36} style={{ margin: "0 auto 0.5rem", color: "#d1d5db" }} />
-            <p style={{ fontWeight: 500 }}>Aucun contact</p>
-            <p style={{ fontSize: "0.8125rem" }}>Ajoutez des contacts pour commencer la campagne</p>
+          <div className="text-center py-12 px-4 text-slate-400">
+            <Users size={36} className="mx-auto mb-2 text-slate-300" />
+            <p className="font-medium">Aucun contact</p>
+            <p className="text-[0.8125rem]">Ajoutez des contacts pour commencer la campagne</p>
           </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div className="table-container">
+            <table>
               <thead>
-                <tr style={{ borderBottom: "1px solid #e5e7eb", backgroundColor: "#f9fafb" }}>
-                  <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" }}>Contact</th>
-                  <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" }}>Telephone</th>
-                  <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" }}>Statut</th>
-                  <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" }}>Duree</th>
-                  <th style={{ textAlign: "left", padding: "0.75rem 1rem", fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" }}>Appele a</th>
+                <tr>
+                  <th>Contact</th>
+                  <th>Telephone</th>
+                  <th>Statut</th>
+                  <th>Duree</th>
+                  <th>Appele a</th>
                 </tr>
               </thead>
               <tbody>
@@ -323,20 +327,22 @@ export default function CampaignDetailPage() {
                   const st = contactStatusMap[cc.status] || contactStatusMap.pending;
                   const ct = cc.contact;
                   return (
-                    <tr key={cc.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                      <td style={{ padding: "0.75rem 1rem", fontWeight: 500, color: "#111827" }}>
-                        {ct ? `${ct.first_name} ${ct.last_name}` : "—"}
-                        {ct?.company && <span style={{ fontSize: "0.75rem", color: "#9ca3af", marginLeft: "0.5rem" }}>{ct.company}</span>}
+                    <tr key={cc.id}>
+                      <td>
+                        <span className="font-medium text-slate-900">
+                          {ct ? `${ct.first_name} ${ct.last_name}` : "—"}
+                        </span>
+                        {ct?.company && <span className="text-xs text-slate-400 ml-2">{ct.company}</span>}
                       </td>
-                      <td style={{ padding: "0.75rem 1rem", color: "#374151", fontSize: "0.875rem" }}>{ct?.phone || "—"}</td>
-                      <td style={{ padding: "0.75rem 1rem" }}>
-                        <span className="badge" style={{ backgroundColor: st.bg, color: st.color, display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-                          {cc.status === "calling" && <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />}
+                      <td className="text-sm text-slate-700">{ct?.phone || "—"}</td>
+                      <td>
+                        <span className="badge inline-flex items-center gap-1" style={{ backgroundColor: st.bg, color: st.color }}>
+                          {cc.status === "calling" && <Loader2 size={12} className="animate-spin" />}
                           {st.label}
                         </span>
                       </td>
-                      <td style={{ padding: "0.75rem 1rem", color: "#6b7280", fontSize: "0.875rem" }}>{formatDuration(cc.call_duration_seconds)}</td>
-                      <td style={{ padding: "0.75rem 1rem", color: "#6b7280", fontSize: "0.875rem" }}>
+                      <td className="text-sm text-slate-500">{formatDuration(cc.call_duration_seconds)}</td>
+                      <td className="text-sm text-slate-500">
                         {cc.called_at ? new Date(cc.called_at).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—"}
                       </td>
                     </tr>
@@ -349,75 +355,79 @@ export default function CampaignDetailPage() {
       </div>
 
       {/* Add contacts modal */}
-      {showAddModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.5)" }} onClick={() => setShowAddModal(false)} />
-          <div style={{ position: "relative", backgroundColor: "white", borderRadius: "1rem", padding: "1.5rem", width: "100%", maxWidth: "32rem", margin: "0 1rem", maxHeight: "80vh", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <h2 style={{ fontSize: "1.125rem", fontWeight: 700, margin: 0 }}>Ajouter des contacts</h2>
-              <button onClick={() => setShowAddModal(false)} className="btn-ghost" style={{ padding: "0.25rem" }}><X size={18} /></button>
-            </div>
-            <div style={{ marginBottom: "1rem" }}>
-              <div style={{ position: "relative" }}>
-                <Search size={16} style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: "#9ca3af" }} />
-                <input
-                  className="input-field"
-                  style={{ paddingLeft: "2.25rem" }}
-                  placeholder="Rechercher par nom, telephone..."
-                  value={contactSearch}
-                  onChange={(e) => setContactSearch(e.target.value)}
-                />
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowAddModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white rounded-xl p-6 w-full max-w-lg mx-4 shadow-2xl max-h-[80vh] flex flex-col"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold m-0">Ajouter des contacts</h2>
+                <button onClick={() => setShowAddModal(false)} className="btn-ghost p-1"><X size={18} /></button>
               </div>
-            </div>
-            <div style={{ flex: 1, overflowY: "auto", marginBottom: "1rem", border: "1px solid #e5e7eb", borderRadius: "0.5rem" }}>
-              {filteredAvailable.length === 0 ? (
-                <div style={{ padding: "2rem", textAlign: "center", color: "#9ca3af", fontSize: "0.875rem" }}>
-                  Aucun contact disponible
+              <div className="mb-4">
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    className="input-field pl-9"
+                    placeholder="Rechercher par nom, telephone..."
+                    value={contactSearch}
+                    onChange={(e) => setContactSearch(e.target.value)}
+                  />
                 </div>
-              ) : (
-                filteredAvailable.map((c) => (
-                  <label
-                    key={c.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.75rem",
-                      padding: "0.75rem 1rem",
-                      cursor: "pointer",
-                      borderBottom: "1px solid #f3f4f6",
-                      backgroundColor: selectedIds.has(c.id) ? "#FFF7ED" : "transparent",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(c.id)}
-                      onChange={() => {
-                        const next = new Set(selectedIds);
-                        if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
-                        setSelectedIds(next);
-                      }}
-                      style={{ accentColor: "#F97316" }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 500, color: "#111827", fontSize: "0.875rem" }}>{c.first_name} {c.last_name}</div>
-                      <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>{c.phone} {c.company ? `· ${c.company}` : ""}</div>
-                    </div>
-                  </label>
-                ))
-              )}
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: "0.8125rem", color: "#6b7280" }}>{selectedIds.size} selectionne(s)</span>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button onClick={() => setShowAddModal(false)} className="btn-secondary">Annuler</button>
-                <button onClick={handleAddContacts} disabled={addingContacts || selectedIds.size === 0} className="btn-primary">
-                  {addingContacts ? "Ajout..." : "Ajouter"}
-                </button>
               </div>
-            </div>
+              <div className="flex-1 overflow-y-auto mb-4 border border-slate-200 rounded-lg">
+                {filteredAvailable.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 text-sm">
+                    Aucun contact disponible
+                  </div>
+                ) : (
+                  filteredAvailable.map((c) => (
+                    <label
+                      key={c.id}
+                      className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-slate-50 transition-colors ${selectedIds.has(c.id) ? "bg-slate-50" : "hover:bg-slate-50"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(c.id)}
+                        onChange={() => {
+                          const next = new Set(selectedIds);
+                          if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
+                          setSelectedIds(next);
+                        }}
+                        className="accent-slate-900"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-slate-900 text-sm">{c.first_name} {c.last_name}</div>
+                        <div className="text-xs text-slate-500">{c.phone} {c.company ? `· ${c.company}` : ""}</div>
+                      </div>
+                    </label>
+                  ))
+                )}
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[0.8125rem] text-slate-500">{selectedIds.size} selectionne(s)</span>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowAddModal(false)} className="btn-secondary">Annuler</button>
+                  <button onClick={handleAddContacts} disabled={addingContacts || selectedIds.size === 0} className="btn-primary">
+                    {addingContacts ? "Ajout..." : "Ajouter"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

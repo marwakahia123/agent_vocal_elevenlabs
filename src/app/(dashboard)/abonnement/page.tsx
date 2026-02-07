@@ -72,7 +72,6 @@ export default function AbonnementPage() {
     if (error) {
       toast.error("Erreur lors du changement de plan");
     } else {
-      // Log billing event
       await supabase.from("billing_events").insert({
         user_id: profile.id,
         event_type: "plan_change",
@@ -89,35 +88,36 @@ export default function AbonnementPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: "1.5rem" }}>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#111827", margin: 0 }}>Abonnement</h1>
-        <p style={{ color: "#6b7280", fontSize: "0.875rem", marginTop: "0.25rem" }}>Gerez votre plan et votre facturation</p>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-slate-900 m-0">Abonnement</h1>
+        <p className="text-sm text-slate-500 mt-1">Gerez votre plan et votre facturation</p>
       </div>
 
       {/* Current usage */}
       {profile && (
-        <div className="card" style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "1rem", fontWeight: 600, color: "#111827", marginBottom: "1rem" }}>Utilisation actuelle</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "1rem" }}>
+        <div className="card mb-8">
+          <h2 className="text-base font-semibold text-slate-900 mb-4">Utilisation actuelle</h2>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
             <div>
-              <div style={{ fontSize: "0.8125rem", color: "#6b7280", marginBottom: "0.375rem" }}>Minutes utilisees</div>
-              <div style={{ height: "8px", backgroundColor: "#f3f4f6", borderRadius: "4px", overflow: "hidden", marginBottom: "0.25rem" }}>
-                <div style={{
-                  height: "100%",
-                  width: `${Math.min((profile.minutes_used / profile.minutes_limit) * 100, 100)}%`,
-                  backgroundColor: profile.minutes_used / profile.minutes_limit > 0.9 ? "#EF4444" : "#F97316",
-                  borderRadius: "4px",
-                }} />
+              <div className="text-[0.8125rem] text-slate-500 mb-1.5">Minutes utilisees</div>
+              <div className="h-2 bg-slate-100 rounded overflow-hidden mb-1">
+                <div
+                  className="h-full rounded"
+                  style={{
+                    width: `${Math.min((profile.minutes_used / profile.minutes_limit) * 100, 100)}%`,
+                    backgroundColor: profile.minutes_used / profile.minutes_limit > 0.9 ? "#EF4444" : "#0f172a",
+                  }}
+                />
               </div>
-              <div style={{ fontSize: "0.8125rem", color: "#374151" }}>
+              <div className="text-[0.8125rem] text-slate-700">
                 <strong>{profile.minutes_used}</strong> / {profile.minutes_limit} min
               </div>
             </div>
             <div>
-              <div style={{ fontSize: "0.8125rem", color: "#6b7280", marginBottom: "0.375rem" }}>Plan actuel</div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
-                <Crown size={16} style={{ color: "#F97316" }} />
-                <span style={{ fontWeight: 600, color: "#111827", textTransform: "capitalize" }}>
+              <div className="text-[0.8125rem] text-slate-500 mb-1.5">Plan actuel</div>
+              <div className="flex items-center gap-1.5">
+                <Crown size={16} className="text-slate-900" />
+                <span className="font-semibold text-slate-900 capitalize">
                   {plans.find((p) => p.id === currentPlan)?.name || currentPlan}
                 </span>
               </div>
@@ -127,67 +127,43 @@ export default function AbonnementPage() {
       )}
 
       {/* Plans */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "1.5rem" }}>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-6">
         {plans.map((plan) => {
           const isCurrent = plan.id === currentPlan;
           const isChanging = changingPlan === plan.id;
           return (
             <div
               key={plan.id}
-              className="card"
+              className="card relative"
               style={{
-                position: "relative",
-                border: isCurrent ? "2px solid #F97316" : plan.popular ? "2px solid #F97316" : undefined,
-                opacity: isCurrent ? 1 : undefined,
+                border: isCurrent ? "2px solid #0f172a" : plan.popular ? "2px solid #0f172a" : undefined,
               }}
             >
               {plan.popular && !isCurrent && (
-                <div style={{
-                  position: "absolute",
-                  top: "-0.75rem",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  backgroundColor: "#F97316",
-                  color: "white",
-                  fontSize: "0.6875rem",
-                  fontWeight: 600,
-                  padding: "0.125rem 0.75rem",
-                  borderRadius: "9999px",
-                }}>
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[0.6875rem] font-semibold px-3 py-0.5 rounded-full">
                   POPULAIRE
                 </div>
               )}
               {isCurrent && (
-                <div style={{
-                  position: "absolute",
-                  top: "-0.75rem",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  backgroundColor: "#F97316",
-                  color: "white",
-                  fontSize: "0.6875rem",
-                  fontWeight: 600,
-                  padding: "0.125rem 0.75rem",
-                  borderRadius: "9999px",
-                }}>
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[0.6875rem] font-semibold px-3 py-0.5 rounded-full">
                   ACTUEL
                 </div>
               )}
 
-              <div style={{ textAlign: "center", marginBottom: "1.25rem", paddingTop: plan.popular || isCurrent ? "0.5rem" : 0 }}>
-                <h3 style={{ fontSize: "1.125rem", fontWeight: 600, color: "#111827", margin: 0 }}>{plan.name}</h3>
-                <div style={{ marginTop: "0.5rem" }}>
-                  <span style={{ fontSize: "2rem", fontWeight: 700, color: "#111827" }}>
+              <div className={`text-center mb-5 ${plan.popular || isCurrent ? "pt-2" : ""}`}>
+                <h3 className="text-lg font-semibold text-slate-900 m-0">{plan.name}</h3>
+                <div className="mt-2">
+                  <span className="text-3xl font-bold text-slate-900">
                     {plan.price === 0 ? "Gratuit" : formatCurrency(plan.price)}
                   </span>
-                  {plan.period && <span style={{ fontSize: "0.875rem", color: "#6b7280" }}>{plan.period}</span>}
+                  {plan.period && <span className="text-sm text-slate-500">{plan.period}</span>}
                 </div>
               </div>
 
-              <ul style={{ listStyle: "none", padding: 0, margin: "0 0 1.25rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <ul className="list-none p-0 mb-5 flex flex-col gap-2">
                 {plan.features.map((feature) => (
-                  <li key={feature} style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", fontSize: "0.8125rem", color: "#4b5563" }}>
-                    <Check size={16} style={{ color: "#F97316", flexShrink: 0, marginTop: "0.125rem" }} />
+                  <li key={feature} className="flex items-start gap-2 text-[0.8125rem] text-slate-600">
+                    <Check size={16} className="text-slate-900 shrink-0 mt-0.5" />
                     {feature}
                   </li>
                 ))}

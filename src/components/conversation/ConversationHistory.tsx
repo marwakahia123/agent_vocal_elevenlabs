@@ -104,26 +104,16 @@ function AudioPlayer({ elevenlabsConversationId }: { elevenlabsConversationId: s
     <button
       onClick={(e) => { e.stopPropagation(); loadAudio(); }}
       disabled={loading}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "0.25rem",
-        fontSize: "0.7rem",
-        fontWeight: 500,
-        padding: "0.125rem 0.5rem",
-        borderRadius: "9999px",
-        border: "1px solid #FFEDD5",
-        backgroundColor: playing ? "#FFF7ED" : "white",
-        color: "#F97316",
-        cursor: loading ? "wait" : "pointer",
-      }}
+      className={`inline-flex items-center gap-1 text-[0.7rem] font-medium px-2 py-0.5 rounded-full border border-slate-200 text-slate-700 ${
+        playing ? "bg-slate-50" : "bg-white"
+      } ${loading ? "cursor-wait" : "cursor-pointer"}`}
     >
       {loading ? (
-        <Loader2 style={{ height: "0.7rem", width: "0.7rem", animation: "spin 1s linear infinite" }} />
+        <Loader2 className="h-[0.7rem] w-[0.7rem] animate-spin" />
       ) : playing ? (
-        <Pause style={{ height: "0.7rem", width: "0.7rem" }} />
+        <Pause className="h-[0.7rem] w-[0.7rem]" />
       ) : (
-        <Play style={{ height: "0.7rem", width: "0.7rem" }} />
+        <Play className="h-[0.7rem] w-[0.7rem]" />
       )}
       {loading ? "..." : playing ? "Pause" : "Audio"}
     </button>
@@ -150,18 +140,11 @@ export default function ConversationHistory({ agentId }: Props) {
   if (loading) {
     return (
       <div className="card">
-        <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#111827", marginBottom: "1rem" }}>
+        <h3 className="text-base font-bold text-slate-900 mb-4">
           Historique des conversations
         </h3>
-        <div style={{ display: "flex", justifyContent: "center", padding: "2rem 0" }}>
-          <div style={{
-            width: "1.5rem",
-            height: "1.5rem",
-            border: "3px solid #FFEDD5",
-            borderTopColor: "#F97316",
-            borderRadius: "50%",
-            animation: "spin 1s linear infinite",
-          }} />
+        <div className="flex justify-center py-8">
+          <div className="spinner" />
         </div>
       </div>
     );
@@ -169,128 +152,86 @@ export default function ConversationHistory({ agentId }: Props) {
 
   return (
     <div className="card">
-      <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "#111827", marginBottom: "1rem" }}>
+      <h3 className="text-base font-bold text-slate-900 mb-4">
         Historique des conversations
-        <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "#6b7280", marginLeft: "0.5rem" }}>
+        <span className="text-xs font-normal text-slate-500 ml-2">
           ({conversations.length})
         </span>
       </h3>
 
       {conversations.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "2rem 0", color: "#9ca3af", fontSize: "0.875rem" }}>
-          <Clock style={{ height: "2rem", width: "2rem", margin: "0 auto 0.5rem", color: "#d1d5db" }} />
+        <div className="text-center py-8 text-slate-400 text-sm">
+          <Clock className="h-8 w-8 mx-auto mb-2 text-slate-300" />
           <p>Aucune conversation enregistree</p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <div className="flex flex-col gap-2">
           {conversations.map((conv) => {
             const CallIcon = CALL_TYPE_ICONS[conv.call_type || "test"] || FlaskConical;
             return (
               <div
                 key={conv.id}
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "0.5rem",
-                  overflow: "hidden",
-                }}
+                className="border border-slate-200 rounded-lg overflow-hidden"
               >
                 {/* Conversation header */}
                 <button
                   onClick={() => setExpandedId(expandedId === conv.id ? null : conv.id)}
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "0.75rem 1rem",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-transparent border-none cursor-pointer text-left hover:bg-slate-50 transition-colors"
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <CallIcon style={{ height: "0.875rem", width: "0.875rem", color: "#9ca3af" }} />
-                    <span style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "0.25rem",
-                      fontSize: "0.7rem",
-                      fontWeight: 500,
-                      padding: "0.125rem 0.5rem",
-                      borderRadius: "9999px",
-                      backgroundColor: conv.status === "ended" ? "#f3f4f6" : conv.status === "active" ? "#dcfce7" : "#fef2f2",
-                      color: conv.status === "ended" ? "#6b7280" : conv.status === "active" ? "#15803d" : "#dc2626",
-                    }}>
+                  <div className="flex items-center gap-2">
+                    <CallIcon className="h-3.5 w-3.5 text-slate-400" />
+                    <span className={`inline-flex items-center gap-1 text-[0.7rem] font-medium px-2 py-0.5 rounded-full ${
+                      conv.status === "ended" ? "bg-slate-100 text-slate-500" :
+                      conv.status === "active" ? "bg-emerald-50 text-emerald-700" :
+                      "bg-red-50 text-red-600"
+                    }`}>
                       {conv.status === "ended" ? "Terminee" : conv.status === "active" ? "Active" : "Erreur"}
                     </span>
-                    <span style={{ fontSize: "0.8rem", color: "#374151" }}>
+                    <span className="text-[0.8rem] text-slate-700">
                       {formatDate(conv.started_at)}
                     </span>
                     {conv.caller_phone && (
-                      <span style={{ fontSize: "0.7rem", color: "#9ca3af" }}>
+                      <span className="text-[0.7rem] text-slate-400">
                         {conv.caller_phone}
                       </span>
                     )}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <div className="flex items-center gap-2">
                     {conv.elevenlabs_conversation_id && (
                       <AudioPlayer elevenlabsConversationId={conv.elevenlabs_conversation_id} />
                     )}
-                    <span style={{ fontSize: "0.75rem", color: "#9ca3af", display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                      <Clock style={{ height: "0.75rem", width: "0.75rem" }} />
+                    <span className="text-xs text-slate-400 flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
                       {formatDuration(conv.duration_seconds)}
                     </span>
-                    <span style={{ fontSize: "0.75rem", color: "#9ca3af", display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                      <MessageSquare style={{ height: "0.75rem", width: "0.75rem" }} />
+                    <span className="text-xs text-slate-400 flex items-center gap-1">
+                      <MessageSquare className="h-3 w-3" />
                       {conv.messages?.length || 0}
                     </span>
                     {expandedId === conv.id
-                      ? <ChevronUp style={{ height: "1rem", width: "1rem", color: "#9ca3af" }} />
-                      : <ChevronDown style={{ height: "1rem", width: "1rem", color: "#9ca3af" }} />
+                      ? <ChevronUp className="h-4 w-4 text-slate-400" />
+                      : <ChevronDown className="h-4 w-4 text-slate-400" />
                     }
                   </div>
                 </button>
 
                 {/* Expanded messages */}
                 {expandedId === conv.id && conv.messages && conv.messages.length > 0 && (
-                  <div style={{
-                    borderTop: "1px solid #e5e7eb",
-                    padding: "0.75rem 1rem",
-                    backgroundColor: "#f9fafb",
-                    maxHeight: "300px",
-                    overflowY: "auto",
-                  }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  <div className="border-t border-slate-200 px-4 py-3 bg-slate-50 max-h-[300px] overflow-y-auto">
+                    <div className="flex flex-col gap-2">
                       {conv.messages
                         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                         .map((msg) => (
                         <div
                           key={msg.id}
-                          style={{
-                            display: "flex",
-                            justifyContent: msg.source === "user" ? "flex-end" : "flex-start",
-                          }}
+                          className={`flex ${msg.source === "user" ? "justify-end" : "justify-start"}`}
                         >
-                          <div style={{
-                            maxWidth: "85%",
-                            borderRadius: "0.75rem",
-                            padding: "0.375rem 0.75rem",
-                            fontSize: "0.8rem",
-                            ...(msg.source === "user"
-                              ? {
-                                  backgroundColor: "#F97316",
-                                  color: "white",
-                                  borderBottomRightRadius: "0.25rem",
-                                }
-                              : {
-                                  backgroundColor: "white",
-                                  color: "#1f2937",
-                                  border: "1px solid #e5e7eb",
-                                  borderBottomLeftRadius: "0.25rem",
-                                }),
-                          }}>
-                            <p style={{ margin: 0 }}>{msg.content}</p>
+                          <div className={`max-w-[85%] rounded-xl px-3 py-1.5 text-[0.8rem] ${
+                            msg.source === "user"
+                              ? "bg-slate-900 text-white rounded-br-sm"
+                              : "bg-white text-slate-800 border border-slate-200 rounded-bl-sm"
+                          }`}>
+                            <p className="m-0">{msg.content}</p>
                           </div>
                         </div>
                       ))}
@@ -299,14 +240,7 @@ export default function ConversationHistory({ agentId }: Props) {
                 )}
 
                 {expandedId === conv.id && (!conv.messages || conv.messages.length === 0) && (
-                  <div style={{
-                    borderTop: "1px solid #e5e7eb",
-                    padding: "1rem",
-                    backgroundColor: "#f9fafb",
-                    textAlign: "center",
-                    color: "#9ca3af",
-                    fontSize: "0.8rem",
-                  }}>
+                  <div className="border-t border-slate-200 p-4 bg-slate-50 text-center text-slate-400 text-[0.8rem]">
                     Aucun message enregistre
                   </div>
                 )}

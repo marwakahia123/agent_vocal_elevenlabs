@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { AnimatePresence, motion } from "framer-motion";
 import type { PhoneNumber } from "@/types/database";
 
 interface PhoneNumberWithAgent extends PhoneNumber {
@@ -37,11 +38,11 @@ const STATUS_BADGE: Record<string, string> = {
 function StatusIcon({ status }: { status: string }) {
   switch (status) {
     case "active":
-      return <CheckCircle size={14} style={{ color: "#15803d" }} />;
+      return <CheckCircle size={14} className="text-emerald-700" />;
     case "inactive":
-      return <XCircle size={14} style={{ color: "#dc2626" }} />;
+      return <XCircle size={14} className="text-red-600" />;
     default:
-      return <Clock size={14} style={{ color: "#a16207" }} />;
+      return <Clock size={14} className="text-amber-600" />;
   }
 }
 
@@ -67,7 +68,9 @@ function NumberModal({
   useEffect(() => {
     async function fetchAgents() {
       const supabase = createClient();
-      const { data } = await supabase.from("agents").select("id, name").order("name");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("agents").select("id, name").eq("user_id", user.id).order("name");
       if (data) setAgents(data);
     }
     fetchAgents();
@@ -109,90 +112,60 @@ function NumberModal({
   };
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 50,
-        padding: "1rem",
-      }}
-    >
-      <div
+    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
         onClick={(e) => e.stopPropagation()}
-        style={{
-          backgroundColor: "white",
-          borderRadius: "0.75rem",
-          width: "100%",
-          maxWidth: "450px",
-          padding: "1.5rem",
-        }}
+        className="relative bg-white rounded-xl w-full max-w-[450px] p-6 shadow-2xl"
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#111827", margin: 0 }}>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-semibold text-slate-900 m-0">
             {editData ? "Modifier le numero" : "Ajouter un numero"}
           </h2>
-          <button onClick={onClose} className="btn-ghost" style={{ padding: "0.25rem" }}>
-            <X size={20} />
-          </button>
+          <button onClick={onClose} className="btn-ghost p-1"><X size={20} /></button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: "1rem" }}>
+          <div className="mb-4">
             <label className="label">Numero de telephone *</label>
-            <input
-              className="input-field"
-              type="tel"
-              value={form.phone_number}
-              onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
-              placeholder="+33 1 23 45 67 89"
-            />
+            <input className="input-field" type="tel" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} placeholder="+33 1 23 45 67 89" />
           </div>
-          <div style={{ marginBottom: "1rem" }}>
+          <div className="mb-4">
             <label className="label">Libelle</label>
-            <input
-              className="input-field"
-              value={form.label}
-              onChange={(e) => setForm({ ...form, label: e.target.value })}
-              placeholder="Ex: Ligne principale, Support..."
-            />
+            <input className="input-field" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="Ex: Ligne principale, Support..." />
           </div>
-          <div style={{ marginBottom: "1rem" }}>
+          <div className="mb-4">
             <label className="label">Agent associe</label>
-            <select
-              className="input-field"
-              value={form.agent_id}
-              onChange={(e) => setForm({ ...form, agent_id: e.target.value })}
-            >
+            <select className="input-field" value={form.agent_id} onChange={(e) => setForm({ ...form, agent_id: e.target.value })}>
               <option value="">Aucun agent</option>
               {agents.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
           </div>
-          <div style={{ marginBottom: "1.5rem" }}>
+          <div className="mb-6">
             <label className="label">Fournisseur</label>
-            <select
-              className="input-field"
-              value={form.provider}
-              onChange={(e) => setForm({ ...form, provider: e.target.value })}
-            >
+            <select className="input-field" value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })}>
               <option value="twilio">Twilio</option>
               <option value="vonage">Vonage</option>
               <option value="other">Autre</option>
             </select>
           </div>
-          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+          <div className="flex gap-3 justify-end">
             <button type="button" onClick={onClose} className="btn-secondary">Annuler</button>
             <button type="submit" className="btn-primary" disabled={saving}>
               {saving ? "Enregistrement..." : (editData ? "Enregistrer" : "Ajouter")}
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -208,9 +181,12 @@ export default function NumerosPage() {
     setLoading(true);
     try {
       const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
       const { data, error } = await supabase
         .from("phone_numbers")
         .select("*, agent:agents(name)")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       setNumbers((data as PhoneNumberWithAgent[]) || []);
@@ -242,10 +218,7 @@ export default function NumerosPage() {
     const newStatus = num.status === "active" ? "inactive" : "active";
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("phone_numbers")
-        .update({ status: newStatus })
-        .eq("id", num.id);
+      const { error } = await supabase.from("phone_numbers").update({ status: newStatus }).eq("id", num.id);
       if (error) throw error;
       toast.success(`Numero ${newStatus === "active" ? "active" : "desactive"}`);
       fetchNumbers();
@@ -267,57 +240,34 @@ export default function NumerosPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#111827", margin: 0 }}>
-            Numeros de telephone
-          </h1>
-          <p style={{ color: "#6b7280", marginTop: "0.25rem", fontSize: "0.875rem" }}>
-            Gerez vos numeros de telephone et leurs associations
-          </p>
+          <h1 className="text-xl font-semibold text-slate-900 m-0">Numeros de telephone</h1>
+          <p className="text-sm text-slate-500 mt-1">Gerez vos numeros de telephone et leurs associations</p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem" }}>
-          <button onClick={fetchNumbers} className="btn-secondary" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <RefreshCw size={16} />
-            Actualiser
+        <div className="flex gap-3">
+          <button onClick={fetchNumbers} className="btn-secondary flex items-center gap-2">
+            <RefreshCw size={16} /> Actualiser
           </button>
-          <button
-            onClick={openAddModal}
-            className="btn-primary"
-            style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-          >
-            <Plus size={16} />
-            Ajouter un numero
+          <button onClick={openAddModal} className="btn-primary flex items-center gap-2">
+            <Plus size={16} /> Ajouter un numero
           </button>
         </div>
       </div>
 
       {/* Info banner */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: "0.75rem",
-          padding: "1rem",
-          backgroundColor: "#FFF7ED",
-          border: "1px solid #FFEDD5",
-          borderRadius: "0.5rem",
-          marginBottom: "1.5rem",
-          fontSize: "0.875rem",
-          color: "#9a3412",
-        }}
-      >
-        <Info size={20} style={{ flexShrink: 0, marginTop: "0.125rem" }} />
+      <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6 text-sm text-blue-900">
+        <Info size={20} className="shrink-0 mt-0.5" />
         <div>
-          <p style={{ margin: "0 0 0.5rem", fontWeight: 600 }}>Configuration du transfert d&apos;appels</p>
-          <p style={{ margin: "0 0 0.25rem" }}>
+          <p className="m-0 mb-2 font-semibold">Configuration du transfert d&apos;appels</p>
+          <p className="m-0 mb-1">
             Pour que les appels entrants soient routes vers votre agent vocal, configurez le renvoi d&apos;appels
             depuis votre telephone professionnel en composant :
           </p>
-          <p style={{ margin: "0.25rem 0", fontFamily: "monospace", fontWeight: 600, fontSize: "1rem" }}>
+          <p className="my-1 font-mono font-semibold text-base">
             **21*+33411789404#
           </p>
-          <p style={{ margin: "0.25rem 0 0", fontSize: "0.8125rem", color: "#b45309" }}>
+          <p className="mt-1 mb-0 text-[0.8125rem] text-blue-700">
             Associez votre numero de telephone a un agent ci-dessous pour activer le routage automatique.
           </p>
         </div>
@@ -325,15 +275,8 @@ export default function NumerosPage() {
 
       {/* Content */}
       {loading ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: "5rem 0" }}>
-          <div style={{
-            width: "2rem",
-            height: "2rem",
-            border: "4px solid #FFEDD5",
-            borderTopColor: "#F97316",
-            borderRadius: "50%",
-            animation: "spin 1s linear infinite",
-          }} />
+        <div className="flex justify-center py-20">
+          <div className="spinner" />
         </div>
       ) : numbers.length === 0 ? (
         <div className="card">
@@ -344,76 +287,47 @@ export default function NumerosPage() {
           </div>
         </div>
       ) : (
-        <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
+        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(340px,1fr))]">
           {numbers.map((num) => (
-            <div key={num.id} className="card" style={{ position: "relative" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                  <div
-                    style={{
-                      width: "2.5rem",
-                      height: "2.5rem",
-                      borderRadius: "0.5rem",
-                      backgroundColor: "#FFF7ED",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#F97316",
-                    }}
-                  >
+            <div key={num.id} className="card relative">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-900">
                     <Phone size={20} />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 600, color: "#111827", fontSize: "1rem" }}>
-                      {num.phone_number}
-                    </div>
-                    {num.label && (
-                      <div style={{ fontSize: "0.8125rem", color: "#6b7280" }}>{num.label}</div>
-                    )}
+                    <div className="font-semibold text-slate-900">{num.phone_number}</div>
+                    {num.label && <div className="text-[0.8125rem] text-slate-500">{num.label}</div>}
                   </div>
                 </div>
-                <span className={`badge ${STATUS_BADGE[num.status]}`} style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+                <span className={`badge ${STATUS_BADGE[num.status]} inline-flex items-center gap-1`}>
                   <StatusIcon status={num.status} />
                   {STATUS_LABELS[num.status]}
                 </span>
               </div>
 
-              <div style={{ marginTop: "1rem", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.8125rem", color: "#6b7280" }}>
+              <div className="mt-4 flex items-center gap-2 text-[0.8125rem] text-slate-500">
                 <Bot size={14} />
                 <span>Agent : </span>
-                <span style={{ fontWeight: 500, color: "#374151" }}>
+                <span className="font-medium text-slate-700">
                   {(num.agent as { name: string } | null)?.name || "Aucun agent lie"}
                 </span>
               </div>
 
-              <div style={{ marginTop: "0.5rem", fontSize: "0.75rem", color: "#9ca3af" }}>
+              <div className="mt-2 text-xs text-slate-400">
                 Fournisseur : {num.provider}
               </div>
 
-              <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", borderTop: "1px solid #f3f4f6", paddingTop: "0.75rem" }}>
-                <button
-                  className="btn-ghost"
-                  style={{ fontSize: "0.8125rem", display: "flex", alignItems: "center", gap: "0.25rem" }}
-                  onClick={() => toggleStatus(num)}
-                >
+              <div className="flex gap-2 mt-4 border-t border-slate-100 pt-3">
+                <button className="btn-ghost text-[0.8125rem] flex items-center gap-1" onClick={() => toggleStatus(num)}>
                   {num.status === "active" ? <XCircle size={14} /> : <CheckCircle size={14} />}
                   {num.status === "active" ? "Desactiver" : "Activer"}
                 </button>
-                <button
-                  className="btn-ghost"
-                  style={{ fontSize: "0.8125rem", display: "flex", alignItems: "center", gap: "0.25rem" }}
-                  onClick={() => openEditModal(num)}
-                >
-                  <Edit2 size={14} />
-                  Modifier
+                <button className="btn-ghost text-[0.8125rem] flex items-center gap-1" onClick={() => openEditModal(num)}>
+                  <Edit2 size={14} /> Modifier
                 </button>
-                <button
-                  className="btn-ghost"
-                  style={{ fontSize: "0.8125rem", color: "#ef4444", display: "flex", alignItems: "center", gap: "0.25rem" }}
-                  onClick={() => handleDelete(num.id)}
-                >
-                  <Trash2 size={14} />
-                  Supprimer
+                <button className="btn-ghost text-[0.8125rem] text-red-500 flex items-center gap-1" onClick={() => handleDelete(num.id)}>
+                  <Trash2 size={14} /> Supprimer
                 </button>
               </div>
             </div>
@@ -422,13 +336,15 @@ export default function NumerosPage() {
       )}
 
       {/* Modal */}
-      {showModal && (
-        <NumberModal
-          editData={editingNumber}
-          onClose={() => { setShowModal(false); setEditingNumber(undefined); }}
-          onSaved={() => { setShowModal(false); setEditingNumber(undefined); fetchNumbers(); }}
-        />
-      )}
+      <AnimatePresence>
+        {showModal && (
+          <NumberModal
+            editData={editingNumber}
+            onClose={() => { setShowModal(false); setEditingNumber(undefined); }}
+            onSaved={() => { setShowModal(false); setEditingNumber(undefined); fetchNumbers(); }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
