@@ -62,6 +62,24 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Supprimer les documents de knowledge base sur ElevenLabs
+    const { data: kbItems } = await supabase
+      .from("knowledge_base_items")
+      .select("elevenlabs_doc_id")
+      .eq("agent_id", agent.id);
+
+    if (kbItems && kbItems.length > 0) {
+      for (const item of kbItems) {
+        if (item.elevenlabs_doc_id) {
+          await fetch(`${ELEVENLABS_API_BASE}/v1/convai/knowledge-base/${item.elevenlabs_doc_id}`, {
+            method: "DELETE",
+            headers: { "xi-api-key": apiKey },
+          });
+        }
+      }
+    }
+
+    // Supprimer l'agent sur ElevenLabs
     const res = await fetch(`${ELEVENLABS_API_BASE}/v1/convai/agents/${agentId}`, {
       method: "DELETE",
       headers: {
@@ -78,7 +96,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Supprimer de la base Supabase (cascade supprime conversations et messages)
+    // Supprimer de la base Supabase (cascade supprime agent_rdv_config, knowledge_base_items, conversations, messages)
     await supabase.from("agents").delete().eq("elevenlabs_agent_id", agentId).eq("user_id", user.id);
 
     return new Response(JSON.stringify({ success: true }), {

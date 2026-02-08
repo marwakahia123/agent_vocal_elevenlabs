@@ -6,6 +6,7 @@ import {
   Phone,
   PhoneIncoming,
   PhoneOutgoing,
+  PhoneForwarded,
   Monitor,
   FlaskConical,
   Calendar,
@@ -239,7 +240,7 @@ export default function HistoriqueAppelsPage() {
       toast.error("Aucune donnee a exporter");
       return;
     }
-    const headers = ["Date", "Agent", "Duree", "Type", "Status", "Telephone"];
+    const headers = ["Date", "Agent", "Duree", "Type", "Status", "Telephone", "Transfere vers"];
     const rows = filtered.map((c) => [
       formatDate(c.started_at),
       (c.agent as { name: string } | null)?.name || "N/A",
@@ -247,6 +248,7 @@ export default function HistoriqueAppelsPage() {
       CALL_TYPE_LABELS[c.call_type || "test"] || c.call_type,
       STATUS_LABELS[c.status] || c.status,
       c.caller_phone || "",
+      c.transferred_to || "",
     ]);
     const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -385,9 +387,17 @@ export default function HistoriqueAppelsPage() {
                     </span>
                   </td>
                   <td>
-                    <span className={`badge ${STATUS_BADGE[conv.status] || "badge-neutral"}`}>
-                      {STATUS_LABELS[conv.status] || conv.status}
-                    </span>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className={`badge ${STATUS_BADGE[conv.status] || "badge-neutral"}`}>
+                        {STATUS_LABELS[conv.status] || conv.status}
+                      </span>
+                      {conv.transferred_to && (
+                        <span className={`badge inline-flex items-center gap-1 ${conv.transfer_status === "success" ? "badge-warning" : "badge-danger"}`}>
+                          <PhoneForwarded size={12} />
+                          Transfere
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td>{conv.caller_phone || "—"}</td>
                   <td>
@@ -438,6 +448,19 @@ export default function HistoriqueAppelsPage() {
                           </div>
                         </div>
                       ))}
+                    {conv.transferred_to && (
+                      <div className="flex justify-center mt-2">
+                        <div className={`inline-flex items-center gap-1.5 text-[0.75rem] px-3 py-1 rounded-full border ${
+                          conv.transfer_status === "success"
+                            ? "text-amber-600 bg-amber-50 border-amber-200"
+                            : "text-red-600 bg-red-50 border-red-200"
+                        }`}>
+                          <PhoneForwarded size={12} />
+                          Appel transfere vers {conv.transferred_to}
+                          {conv.transfer_status === "failed" && " (echoue)"}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center text-slate-400 text-[0.8rem]">

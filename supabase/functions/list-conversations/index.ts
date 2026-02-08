@@ -92,6 +92,8 @@ Deno.serve(async (req) => {
         duration_seconds,
         call_type,
         caller_phone,
+        transferred_to,
+        transfer_status,
         agent:agents(name),
         messages (
           id,

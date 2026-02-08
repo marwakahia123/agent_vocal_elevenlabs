@@ -157,6 +157,7 @@ export interface SupportTicket {
   id: string;
   user_id: string;
   ticket_number: number;
+  case_number: string | null;
   contact_id: string | null;
   conversation_id: string | null;
   subject: string;
@@ -229,6 +230,42 @@ export interface KnowledgeBaseItem {
   status: "uploading" | "processing" | "ready" | "failed";
   url: string | null;
   created_at: string;
+}
+
+// Agent RDV Config
+export interface TransferCondition {
+  name: string;
+  phone: string;
+  condition: string;
+  instructions: string;
+  time_restricted: boolean;
+  timezone: string;
+  time_from: string;
+  time_to: string;
+  active_days: string[];
+}
+
+export interface AgentRdvConfig {
+  id: string;
+  agent_id: string;
+  user_id: string;
+  availability_enabled: boolean;
+  working_days: string[];
+  start_time: string;
+  end_time: string;
+  slot_duration_minutes: number;
+  breaks: { start: string; end: string }[];
+  min_delay_hours: number;
+  max_horizon_days: number;
+  transfer_enabled: boolean;
+  always_transfer: boolean;
+  transfer_conditions: TransferCondition[];
+  default_transfer_number: string | null;
+  sms_notification_enabled: boolean;
+  email_notification_enabled: boolean;
+  webhook_secret: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // Dashboard aggregated stats

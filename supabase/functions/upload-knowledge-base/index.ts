@@ -159,8 +159,12 @@ Deno.serve(async (req) => {
     let existingKb: Array<Record<string, unknown>> = [];
     if (getAgentRes.ok) {
       const agentConfig = await getAgentRes.json();
-      existingKb =
-        agentConfig?.conversation_config?.agent?.prompt?.knowledge_base || [];
+      const existingPrompt = agentConfig?.conversation_config?.agent?.prompt || {};
+      existingKb = (existingPrompt.knowledge_base as Array<Record<string, unknown>>) || [];
+      const toolCount = Array.isArray(existingPrompt.tools) ? (existingPrompt.tools as unknown[]).length : 0;
+      console.log(`[UploadKB] Agent ${agentId}: ${toolCount} existing tools, ${existingKb.length} existing KB entries`);
+    } else {
+      console.log(`[UploadKB] Warning: Could not fetch agent config (status ${getAgentRes.status})`);
     }
 
     // Etape 3: Attacher le document a l'agent
@@ -193,6 +197,7 @@ Deno.serve(async (req) => {
 
     if (!patchRes.ok) {
       const errorText = await patchRes.text();
+      console.log(`[UploadKB] PATCH failed: ${patchRes.status} — ${errorText}`);
       return new Response(
         JSON.stringify({
           error: `ElevenLabs agent update error: ${patchRes.status}`,
@@ -201,6 +206,7 @@ Deno.serve(async (req) => {
         { status: patchRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    console.log(`[UploadKB] KB attached to agent ${agentId}: ${existingKb.length + 1} total KB entries`);
 
     // Etape 4: Sauvegarder dans la base de donnees locale
     const { data: kbItem, error: insertError } = await supabase

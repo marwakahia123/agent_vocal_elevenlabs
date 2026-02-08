@@ -63,6 +63,14 @@ ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 
 -- Politique permissive (pas d'auth utilisateur dans ce projet)
-CREATE POLICY "Allow all on agents" ON agents FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on conversations" ON conversations FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all on messages" ON messages FOR ALL USING (true) WITH CHECK (true);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all on agents' AND tablename = 'agents') THEN
+    CREATE POLICY "Allow all on agents" ON agents FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all on conversations' AND tablename = 'conversations') THEN
+    CREATE POLICY "Allow all on conversations" ON conversations FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow all on messages' AND tablename = 'messages') THEN
+    CREATE POLICY "Allow all on messages" ON messages FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;

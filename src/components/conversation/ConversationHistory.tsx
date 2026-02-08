@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { Clock, MessageSquare, ChevronDown, ChevronUp, Play, Pause, PhoneIncoming, FlaskConical, Loader2 } from "lucide-react";
+import { Clock, MessageSquare, ChevronDown, ChevronUp, Play, Pause, PhoneIncoming, PhoneForwarded, FlaskConical, Loader2 } from "lucide-react";
 import { listConversations } from "@/lib/elevenlabs";
 import { createClient } from "@/lib/supabase/client";
 import type { DbConversation } from "@/types/elevenlabs";
@@ -101,12 +101,15 @@ function AudioPlayer({ elevenlabsConversationId }: { elevenlabsConversationId: s
   }, [audioUrl]);
 
   return (
-    <button
+    <span
+      role="button"
+      tabIndex={0}
       onClick={(e) => { e.stopPropagation(); loadAudio(); }}
-      disabled={loading}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); loadAudio(); } }}
+      aria-disabled={loading}
       className={`inline-flex items-center gap-1 text-[0.7rem] font-medium px-2 py-0.5 rounded-full border border-slate-200 text-slate-700 ${
         playing ? "bg-slate-50" : "bg-white"
-      } ${loading ? "cursor-wait" : "cursor-pointer"}`}
+      } ${loading ? "cursor-wait opacity-60" : "cursor-pointer"}`}
     >
       {loading ? (
         <Loader2 className="h-[0.7rem] w-[0.7rem] animate-spin" />
@@ -116,7 +119,7 @@ function AudioPlayer({ elevenlabsConversationId }: { elevenlabsConversationId: s
         <Play className="h-[0.7rem] w-[0.7rem]" />
       )}
       {loading ? "..." : playing ? "Pause" : "Audio"}
-    </button>
+    </span>
   );
 }
 
@@ -187,6 +190,14 @@ export default function ConversationHistory({ agentId }: Props) {
                     }`}>
                       {conv.status === "ended" ? "Terminee" : conv.status === "active" ? "Active" : "Erreur"}
                     </span>
+                    {conv.transferred_to && (
+                      <span className={`inline-flex items-center gap-1 text-[0.7rem] font-medium px-2 py-0.5 rounded-full ${
+                        conv.transfer_status === "success" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-600"
+                      }`}>
+                        <PhoneForwarded className="h-3 w-3" />
+                        Transfere
+                      </span>
+                    )}
                     <span className="text-[0.8rem] text-slate-700">
                       {formatDate(conv.started_at)}
                     </span>
@@ -235,6 +246,19 @@ export default function ConversationHistory({ agentId }: Props) {
                           </div>
                         </div>
                       ))}
+                      {conv.transferred_to && (
+                        <div className="flex justify-center mt-2">
+                          <div className={`inline-flex items-center gap-1.5 text-[0.75rem] px-3 py-1 rounded-full border ${
+                            conv.transfer_status === "success"
+                              ? "text-amber-600 bg-amber-50 border-amber-200"
+                              : "text-red-600 bg-red-50 border-red-200"
+                          }`}>
+                            <PhoneForwarded className="h-3 w-3" />
+                            Appel transfere vers {conv.transferred_to}
+                            {conv.transfer_status === "failed" && " (echoue)"}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

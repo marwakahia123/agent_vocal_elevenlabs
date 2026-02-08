@@ -7,6 +7,7 @@ import { SUPPORTED_LANGUAGES, LLM_MODELS, DEFAULT_FORM_VALUES } from "@/lib/cons
 import { listVoices, createAgent, updateAgent, uploadKnowledgeBase } from "@/lib/elevenlabs";
 import { createClient } from "@/lib/supabase/client";
 import type { Voice, CreateAgentFormData } from "@/types/elevenlabs";
+import type { KnowledgeBaseItem } from "@/types/database";
 
 interface Props {
   onCreated: () => void;
@@ -22,6 +23,7 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
   const [kbFiles, setKbFiles] = useState<File[]>([]);
   const [kbUrls, setKbUrls] = useState<string[]>([]);
   const [kbUrlInput, setKbUrlInput] = useState("");
+  const [existingKbItems, setExistingKbItems] = useState<KnowledgeBaseItem[]>([]);
   const [form, setForm] = useState<CreateAgentFormData>({
     name: initialData?.name || "",
     systemPrompt: initialData?.systemPrompt || "",
@@ -52,6 +54,20 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
       .finally(() => setLoadingVoices(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Load existing KB items in edit mode
+  useEffect(() => {
+    if (!editMode || !agentId) return;
+    const supabase = createClient();
+    supabase
+      .from("knowledge_base_items")
+      .select("*")
+      .eq("elevenlabs_agent_id", agentId)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (data) setExistingKbItems(data as KnowledgeBaseItem[]);
+      });
+  }, [editMode, agentId]);
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -379,6 +395,20 @@ export default function CreateAgentForm({ onCreated, editMode, agentId, initialD
           Base de connaissances (PDF, TXT, URLs)
         </summary>
         <div className="px-4 pb-4 flex flex-col gap-4">
+          {/* Existing KB items (edit mode) */}
+          {existingKbItems.length > 0 && (
+            <div>
+              <p className="text-xs text-slate-500 font-medium mb-2">Fichiers existants</p>
+              {existingKbItems.map((item) => (
+                <div key={item.id} className="flex items-center gap-2 text-sm text-slate-700 mb-2 bg-green-50 border border-green-200 px-3 py-2 rounded-lg">
+                  {item.file_type === "url" ? <Globe size={14} className="text-green-600" /> : <FileText size={14} className="text-green-600" />}
+                  <span className="flex-1 truncate">{item.file_name}</span>
+                  <span className="text-green-600 text-xs font-medium">{item.status}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* File upload */}
           <div>
             <label className="label flex items-center gap-1">

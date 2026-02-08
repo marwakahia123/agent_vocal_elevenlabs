@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
     const mappedAgents = (agents || []).map((a: Record<string, unknown>) => ({
       agent_id: a.elevenlabs_agent_id,
       name: a.name,
+      agent_type: (a.agent_type as string) || "standard",
       conversation_config: {
         agent: {
           first_message: a.first_message || "",

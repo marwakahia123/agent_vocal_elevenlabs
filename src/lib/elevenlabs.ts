@@ -47,6 +47,25 @@ export async function getSignedUrl(agentId: string): Promise<SignedUrlResponse> 
   return invokeFunction<SignedUrlResponse>("get-signed-url", { agentId });
 }
 
+// RDV Agent
+export async function createRdvAgent(formData: Record<string, unknown>): Promise<{ agent_id: string }> {
+  return invokeFunction<{ agent_id: string }>("create-rdv-agent", formData);
+}
+
+// RDV Agent update
+export async function updateRdvAgent(agentId: string, formData: Record<string, unknown>): Promise<Agent> {
+  return invokeFunction<Agent>("update-rdv-agent", { agentId, ...formData });
+}
+
+// Support Agent
+export async function createSupportAgent(formData: Record<string, unknown>): Promise<{ agent_id: string }> {
+  return invokeFunction<{ agent_id: string }>("create-support-agent", formData);
+}
+
+export async function updateSupportAgent(agentId: string, formData: Record<string, unknown>): Promise<Agent> {
+  return invokeFunction<Agent>("update-support-agent", { agentId, ...formData });
+}
+
 // Conversations
 export async function startConversation(elevenlabsAgentId: string): Promise<DbConversation> {
   return invokeFunction<DbConversation>("save-conversation", {

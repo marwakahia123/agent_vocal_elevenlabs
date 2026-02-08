@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Ticket, AlertCircle, X, Send, Trash2 } from "lucide-react";
+import { Plus, Ticket, AlertCircle, X, Send, Trash2, User, Phone as PhoneIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { AnimatePresence, motion } from "framer-motion";
@@ -31,7 +31,7 @@ export default function TicketsPage() {
     if (!user) { setLoading(false); return; }
     const { data } = await supabase
       .from("support_tickets")
-      .select("*")
+      .select("*, contact:contacts(first_name, last_name, phone, email)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     setTickets((data as SupportTicket[]) || []);
@@ -198,10 +198,11 @@ export default function TicketsPage() {
             <thead>
               <tr>
                 <th>#</th>
+                <th>Client</th>
                 <th>Sujet</th>
+                <th>Resume</th>
                 <th>Statut</th>
                 <th>Priorite</th>
-                <th>Categorie</th>
                 <th>Cree</th>
                 <th>Actions</th>
               </tr>
@@ -210,18 +211,31 @@ export default function TicketsPage() {
               {filtered.map((ticket) => {
                 const s = statusMap[ticket.status] || statusMap.open;
                 const p = priorityMap[ticket.priority] || priorityMap.medium;
+                const contact = ticket.contact;
                 return (
                   <tr key={ticket.id} className="cursor-pointer" onClick={() => openTicketDetail(ticket)}>
-                    <td className="font-medium">#{ticket.ticket_number}</td>
+                    <td className="font-medium text-[0.8125rem]">{ticket.case_number || `#${ticket.ticket_number}`}</td>
+                    <td>
+                      {contact ? (
+                        <div>
+                          <div className="font-medium text-slate-900 text-[0.8125rem]">{contact.first_name} {contact.last_name}</div>
+                          {contact.phone && <div className="text-[0.75rem] text-slate-400">{contact.phone}</div>}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
                     <td>
                       <div className="flex items-center gap-2">
                         {ticket.priority === "urgent" && <AlertCircle size={14} className="text-red-600" />}
                         <span className="font-medium text-slate-900">{ticket.subject}</span>
                       </div>
                     </td>
+                    <td className="text-[0.8125rem] text-slate-500 max-w-[200px]">
+                      <span className="block truncate">{ticket.description || "—"}</span>
+                    </td>
                     <td><span className="badge" style={{ backgroundColor: s.bg, color: s.color }}>{s.label}</span></td>
                     <td><span className="badge" style={{ backgroundColor: p.bg, color: p.color }}>{p.label}</span></td>
-                    <td className="capitalize">{ticket.category.replace("_", " ")}</td>
                     <td className="text-[0.8125rem] text-slate-500">{formatRelative(ticket.created_at)}</td>
                     <td>
                       <button
@@ -317,11 +331,34 @@ export default function TicketsPage() {
               {/* Header */}
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <div className="text-[0.8125rem] text-slate-500">#{selectedTicket.ticket_number}</div>
+                  <div className="text-[0.8125rem] text-slate-500">{selectedTicket.case_number || `#${selectedTicket.ticket_number}`}</div>
                   <h2 className="text-lg font-bold text-slate-900 mt-1 m-0">{selectedTicket.subject}</h2>
                 </div>
                 <button onClick={() => setSelectedTicket(null)} className="btn-ghost p-1"><X size={20} /></button>
               </div>
+
+              {/* Client info */}
+              {selectedTicket.contact && (
+                <div className="flex items-center gap-4 mb-4 p-3 bg-slate-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <User size={14} className="text-slate-400" />
+                    <span className="text-sm font-medium text-slate-800">
+                      {selectedTicket.contact.first_name} {selectedTicket.contact.last_name}
+                    </span>
+                  </div>
+                  {selectedTicket.contact.phone && (
+                    <div className="flex items-center gap-2">
+                      <PhoneIcon size={14} className="text-slate-400" />
+                      <span className="text-sm text-slate-600">{selectedTicket.contact.phone}</span>
+                    </div>
+                  )}
+                  {selectedTicket.contact.email && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-500">{selectedTicket.contact.email}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Status + Priority */}
               <div className="flex gap-3 items-center mb-4">

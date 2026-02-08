@@ -45,8 +45,9 @@ Deno.serve(async (req) => {
     const forwardedFrom = formData.get("ForwardedFrom")?.toString();
     const callerPhone = formData.get("From")?.toString() || "";
     const toNumber = formData.get("To")?.toString() || "";
+    const callSid = formData.get("CallSid")?.toString() || "";
 
-    console.log("[twilio-webhook] From:", callerPhone, "To:", toNumber, "ForwardedFrom:", forwardedFrom);
+    console.log("[twilio-webhook] From:", callerPhone, "To:", toNumber, "ForwardedFrom:", forwardedFrom, "CallSid:", callSid);
 
     // Determine which number was originally called
     // ForwardedFrom = the number that set up call forwarding to Twilio
@@ -112,6 +113,12 @@ Deno.serve(async (req) => {
           from_number: callerPhone,
           to_number: toNumber,
           direction: "inbound",
+          conversation_initiation_client_data: {
+            dynamic_variables: {
+              call_sid: callSid,
+              caller_phone: callerPhone,
+            },
+          },
         }),
       }
     );
@@ -143,6 +150,7 @@ Deno.serve(async (req) => {
       status: "active",
       call_type: "inbound",
       caller_phone: callerPhone,
+      twilio_call_sid: callSid,
     });
 
     return new Response(twimlBody, {
