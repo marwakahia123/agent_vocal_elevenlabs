@@ -32,6 +32,20 @@ function buildAvailabilityPrompt(config: Record<string, unknown>): string {
     .map((b) => `${b.start} - ${b.end}`)
     .join(", ");
 
+  // Build notification message based on config
+  const smsEnabled = config.sms_notification_enabled as boolean;
+  const emailEnabled = config.email_notification_enabled as boolean;
+  let notificationMessage: string;
+  if (smsEnabled && emailEnabled) {
+    notificationMessage = "Vous recevrez un SMS et un email avec toutes les informations de votre rendez-vous.";
+  } else if (smsEnabled) {
+    notificationMessage = "Vous recevrez un SMS avec les informations de votre rendez-vous.";
+  } else if (emailEnabled) {
+    notificationMessage = "Vous recevrez un email avec les informations de votre rendez-vous.";
+  } else {
+    notificationMessage = "Votre rendez-vous est bien confirme.";
+  }
+
   return `
 ## Base de connaissances
 Si des documents ont ete fournis dans ta base de connaissances, tu DOIS les utiliser pour repondre aux questions des appelants (services proposes, tarifs, horaires, informations sur l'entreprise, etc.).
@@ -63,15 +77,16 @@ ${breaksList ? `- Pauses : ${breaksList}` : ""}
 3. Quand il veut prendre rendez-vous, demande la date souhaitee
 4. Utilise TOUJOURS l'outil "verifier_disponibilite" pour voir les creneaux libres (ne devine jamais les disponibilites)
 5. Propose les creneaux disponibles au client
-6. Une fois le creneau choisi, collecte les informations du client :
-   - Nom complet (obligatoire)
-   - Numero de telephone (obligatoire)
-   - Adresse email (optionnel mais recommande)
-   - Motif du rendez-vous (obligatoire - demande toujours pourquoi le client veut un rendez-vous)
+6. Une fois le creneau choisi, recupere les informations du client :
+   - Le numero de telephone du client est {{caller_phone}}. Utilise TOUJOURS ce numero, ne demande JAMAIS au client son numero de telephone.
+   - Utilise l'outil "rechercher_contact" avec {{caller_phone}} pour verifier si le client est deja enregistre
+   - Si le contact existe, utilise ses informations (nom, email) et confirme : "J'ai bien vos coordonnees, [nom], est-ce correct ?"
+   - Si le contact n'existe pas, demande : Nom complet (obligatoire), Adresse email (optionnel)
+   - Pour le motif du rendez-vous : deduis-le automatiquement du contexte de la conversation (ce que le client a dit, les questions posees, les services demandes). Ne demande le motif QUE si tu ne peux vraiment pas le deduire de l'echange.
 7. Genere un resume concis de l'echange (les points cles discutes, les questions posees, le contexte du rendez-vous) et passe-le dans le champ "resume" de l'outil
 8. Utilise l'outil "reserver_rendez_vous" pour confirmer la reservation
-9. Confirme le rendez-vous au client avec un recap (date, heure, duree, motif)
-10. Si un lien de reunion en ligne est retourne par l'outil, communique-le au client
+9. Confirme le rendez-vous au client avec un recap (date, heure, duree)
+10. Ne communique JAMAIS le lien de reunion au client. Dis simplement : "${notificationMessage}"
 11. Demande s'il a d'autres questions, sinon termine poliment l'appel
 
 ### Regles importantes
@@ -80,6 +95,15 @@ ${breaksList ? `- Pauses : ${breaksList}` : ""}
 - Si aucun creneau n'est disponible a la date demandee, propose des dates alternatives
 - Sois toujours poli, professionnel et concis
 - Reponds aux questions sur les services en te basant sur la base de connaissances
+- Ne communique JAMAIS de lien de reunion (Google Meet, Teams, etc.) au client
+
+### Collecte d'adresse email par telephone
+Quand le client dicte son adresse email :
+- "arobase" ou "at" signifie "@"
+- "point" signifie "."
+- Reconnais les fournisseurs courants : gmail.com, yahoo.fr, yahoo.com, hotmail.com, hotmail.fr, outlook.com, outlook.fr, orange.fr, free.fr, sfr.fr, laposte.net, icloud.com, live.fr, wanadoo.fr
+- Exemple : "jean dupont arobase gmail point com" = jean.dupont@gmail.com
+- Confirme TOUJOURS l'adresse email en l'epelant lettre par lettre au client pour verifier
 `.trim();
 }
 
@@ -164,6 +188,29 @@ ${defaultNum ? `\nNumero de transfert par defaut: ${defaultNum}` : ""}
     const tools: Record<string, unknown>[] = [
       {
         type: "webhook",
+        name: "rechercher_contact",
+        description: "Recherche un contact existant par numero de telephone. Utilise TOUJOURS cet outil quand tu dois recuperer les informations du client avant de reserver un rendez-vous.",
+        response_timeout_secs: 10,
+        disable_interruptions: true,
+        force_pre_tool_speech: true,
+        api_schema: {
+          url: webhookUrl,
+          method: "POST",
+          request_headers: {
+            "x-webhook-secret": webhookSecret,
+          },
+          request_body_schema: {
+            type: "object",
+            properties: {
+              action: { type: "string", description: "Toujours 'search_contact'" },
+              phone: { type: "string", description: "Numero de telephone du client" },
+            },
+            required: ["action", "phone"],
+          },
+        },
+      },
+      {
+        type: "webhook",
         name: "verifier_disponibilite",
         description: "Verifie les creneaux disponibles pour un rendez-vous a une date donnee. Utilise cet outil quand le client veut prendre rendez-vous et mentionne une date. Retourne aussi la date actuelle.",
         response_timeout_secs: 20,
@@ -204,13 +251,13 @@ ${defaultNum ? `\nNumero de transfert par defaut: ${defaultNum}` : ""}
               action: { type: "string", description: "Toujours 'book_appointment'" },
               client_name: { type: "string", description: "Nom complet du client" },
               client_phone: { type: "string", description: "Numero de telephone du client au format international" },
-              client_email: { type: "string", description: "Adresse email du client (optionnel mais recommande)" },
+              client_email: { type: "string", description: "Adresse email du client (optionnel)" },
               date: { type: "string", description: "Date du rendez-vous au format YYYY-MM-DD" },
               time: { type: "string", description: "Heure du rendez-vous au format HH:MM" },
-              motif: { type: "string", description: "Motif ou objet du rendez-vous (obligatoire - demande toujours au client)" },
+              motif: { type: "string", description: "Motif du rendez-vous deduit du contexte de la conversation. Demande au client seulement si le motif n'est pas clair." },
               resume: { type: "string", description: "Resume concis de l'echange avec le client : points cles discutes, questions posees, contexte du rendez-vous" },
             },
-            required: ["action", "client_name", "client_phone", "date", "time", "motif", "resume"],
+            required: ["action", "client_name", "client_phone", "date", "time"],
           },
         },
       },

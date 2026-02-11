@@ -641,6 +641,49 @@ async function handleCheckAvailability(
   return `${dateInfo} Creneaux disponibles le ${dateStr} : ${slotsFormatted}. Chaque creneau dure ${config.slot_duration_minutes} minutes.${moreText}`;
 }
 
+async function handleSearchContact(
+  supabase: ReturnType<typeof createClient>,
+  config: RdvConfig,
+  phone: string
+): Promise<string> {
+  if (!phone) {
+    return "Numero de telephone manquant. Demande au client son nom complet et son adresse email.";
+  }
+
+  // Normalize phone number
+  let normalizedPhone = phone.replace(/[\s\-\.()]/g, "");
+  if (normalizedPhone.startsWith("0") && normalizedPhone.length === 10) {
+    normalizedPhone = "+33" + normalizedPhone.substring(1);
+  }
+  if (!normalizedPhone.startsWith("+")) {
+    normalizedPhone = "+" + normalizedPhone;
+  }
+
+  console.log(`[SearchContact] Searching for phone: ${normalizedPhone} (original: ${phone})`);
+
+  const { data: contact } = await supabase
+    .from("contacts")
+    .select("first_name, last_name, email, phone")
+    .eq("user_id", config.user_id)
+    .eq("phone", normalizedPhone)
+    .limit(1)
+    .maybeSingle();
+
+  if (contact) {
+    const fullName = [contact.first_name, contact.last_name].filter(Boolean).join(" ");
+    let info = `Contact trouve : ${fullName}, telephone: ${contact.phone}`;
+    if (contact.email) {
+      info += `, email: ${contact.email}`;
+    }
+    info += ". Utilise ces informations pour la reservation. Confirme avec le client que ses coordonnees sont correctes.";
+    console.log(`[SearchContact] Found: ${fullName}`);
+    return info;
+  }
+
+  console.log(`[SearchContact] No contact found for ${normalizedPhone}`);
+  return "Aucun contact trouve avec ce numero. Demande au client son nom complet et eventuellement son adresse email.";
+}
+
 async function handleBookAppointment(
   supabase: ReturnType<typeof createClient>,
   config: RdvConfig,
@@ -652,11 +695,10 @@ async function handleBookAppointment(
     return "Informations manquantes. Il faut au minimum : nom du client, telephone, date et heure.";
   }
 
-  if (!motif) {
-    return "Le motif du rendez-vous est obligatoire. Veuillez demander au client la raison de son rendez-vous.";
-  }
+  // Motif is optional — default to "Rendez-vous" if not provided
+  const effectiveMotif = motif || "Rendez-vous";
 
-  console.log(`[BookAppointment] Booking: ${client_name}, ${client_phone}, ${date} ${time}, motif: ${motif}`);
+  console.log(`[BookAppointment] Booking: ${client_name}, ${client_phone}, ${date} ${time}, motif: ${effectiveMotif}`);
   if (resume) console.log(`[BookAppointment] Resume: ${resume}`);
 
   // Build start/end timestamps (these are Europe/Paris local times)
@@ -721,8 +763,8 @@ async function handleBookAppointment(
   }
 
   // Build description with resume
-  const apptTitle = motif || "Rendez-vous";
-  let apptDescription = `Motif: ${motif}\nClient: ${client_name}, Tel: ${client_phone}${client_email ? `, Email: ${client_email}` : ""}`;
+  const apptTitle = effectiveMotif;
+  let apptDescription = `Motif: ${effectiveMotif}\nClient: ${client_name}, Tel: ${client_phone}${client_email ? `, Email: ${client_email}` : ""}`;
   if (resume) {
     apptDescription += `\n\nResume de l'echange:\n${resume}`;
   }
@@ -774,7 +816,7 @@ async function handleBookAppointment(
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       console.log(`[BookAppointment] Sending SMS to ${normalizedPhone}...`);
-      const smsContent = `Bonjour ${client_name}, votre rendez-vous est confirme pour le ${date} a ${time}. Duree: ${config.slot_duration_minutes} min. Motif: ${motif}.${meetingLinkText} A bientot !`;
+      const smsContent = `Bonjour ${client_name}, votre rendez-vous est confirme pour le ${date} a ${time}. Duree: ${config.slot_duration_minutes} min. Motif: ${effectiveMotif}.${meetingLinkText} A bientot !`;
       const smsRes = await fetch(`${supabaseUrl}/functions/v1/send-sms`, {
         method: "POST",
         headers: {
@@ -814,7 +856,7 @@ async function handleBookAppointment(
           date,
           time,
           duration_minutes: config.slot_duration_minutes,
-          motif: motif || "Rendez-vous",
+          motif: effectiveMotif,
           meeting_link: meetingLink,
         }),
       });
@@ -825,11 +867,8 @@ async function handleBookAppointment(
     }
   }
 
-  // Build response for the voice agent
-  let response = `Rendez-vous confirme pour ${client_name} le ${date} a ${time} (${config.slot_duration_minutes} minutes). Motif: ${motif}.`;
-  if (meetingLink) {
-    response += ` Un lien de reunion en ligne a ete genere: ${meetingLink}`;
-  }
+  // Build response for the voice agent — do NOT include meeting link
+  let response = `Rendez-vous confirme pour ${client_name} le ${date} a ${time} (${config.slot_duration_minutes} minutes).`;
   if (config.sms_notification_enabled) {
     response += " Un SMS de confirmation a ete envoye.";
   }
@@ -951,6 +990,9 @@ Deno.serve(async (req) => {
     let result: string;
 
     switch (action) {
+      case "search_contact":
+        result = await handleSearchContact(supabase, config as RdvConfig, body.phone);
+        break;
       case "check_availability":
         result = await handleCheckAvailability(supabase, config as RdvConfig, body.date);
         break;

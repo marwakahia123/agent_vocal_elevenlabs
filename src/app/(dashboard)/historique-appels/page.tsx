@@ -51,6 +51,13 @@ const STATUS_BADGE: Record<string, string> = {
   error: "badge-danger",
 };
 
+function getDisplayStatus(status: string, duration: number | null) {
+  if (status === "ended" && (!duration || duration === 0)) {
+    return { label: "Pas de reponse", badge: "badge-warning" };
+  }
+  return { label: STATUS_LABELS[status] || status, badge: STATUS_BADGE[status] || "badge-neutral" };
+}
+
 function CallTypeIcon({ type }: { type: string }) {
   switch (type) {
     case "inbound":
@@ -246,7 +253,7 @@ export default function HistoriqueAppelsPage() {
       (c.agent as { name: string } | null)?.name || "N/A",
       formatDuration(c.duration_seconds),
       CALL_TYPE_LABELS[c.call_type || "test"] || c.call_type,
-      STATUS_LABELS[c.status] || c.status,
+      getDisplayStatus(c.status, c.duration_seconds).label,
       c.caller_phone || "",
       c.transferred_to || "",
     ]);
@@ -388,9 +395,10 @@ export default function HistoriqueAppelsPage() {
                   </td>
                   <td>
                     <div className="flex items-center gap-1 flex-wrap">
-                      <span className={`badge ${STATUS_BADGE[conv.status] || "badge-neutral"}`}>
-                        {STATUS_LABELS[conv.status] || conv.status}
-                      </span>
+                      {(() => {
+                        const ds = getDisplayStatus(conv.status, conv.duration_seconds);
+                        return <span className={`badge ${ds.badge}`}>{ds.label}</span>;
+                      })()}
                       {conv.transferred_to && (
                         <span className={`badge inline-flex items-center gap-1 ${conv.transfer_status === "success" ? "badge-warning" : "badge-danger"}`}>
                           <PhoneForwarded size={12} />

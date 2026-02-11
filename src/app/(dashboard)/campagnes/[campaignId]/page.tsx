@@ -97,6 +97,29 @@ export default function CampaignDetailPage() {
     Promise.all([fetchCampaign(), fetchContacts()]).finally(() => setLoading(false));
   }, [fetchCampaign, fetchContacts]);
 
+  // Reconcile stuck "calling" contacts by triggering list-conversations
+  useEffect(() => {
+    if (!campaign?.agent?.elevenlabs_agent_id) return;
+
+    const hasStuck = contacts.some(
+      (c) => c.status === "calling" && c.called_at
+        && Date.now() - new Date(c.called_at).getTime() > 3 * 60 * 1000
+    );
+
+    if (hasStuck) {
+      const supabase = createClient();
+      supabase.functions
+        .invoke("list-conversations", {
+          body: { elevenlabsAgentId: campaign.agent.elevenlabs_agent_id },
+        })
+        .then(() => {
+          fetchCampaign();
+          fetchContacts();
+        });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contacts.length, campaign?.agent?.elevenlabs_agent_id]);
+
   // Realtime subscription for live updates during campaign
   useEffect(() => {
     const supabase = createClient();
@@ -276,7 +299,7 @@ export default function CampaignDetailPage() {
           { icon: CheckCircle, label: "Repondus", value: campaign.contacts_answered, color: "#059669" },
           { icon: XCircle, label: "Echoues", value: campaign.contacts_failed, color: "#DC2626" },
           { icon: Clock, label: "Duree totale", value: formatDuration(contacts.reduce((sum, c) => sum + (c.call_duration_seconds || 0), 0) || null), color: "#7C3AED" },
-          { icon: DollarSign, label: "Cout", value: `${campaign.cost_euros.toFixed(2)} EUR`, color: "#0f172a" },
+          { icon: DollarSign, label: "Cout", value: `${campaign.cost_euros?.toFixed(2) || "0.00"} EUR`, color: "#0f172a" },
         ].map(({ icon: Icon, label, value, color }) => (
           <div key={label} className="card p-4 text-center">
             <Icon size={20} className="mx-auto mb-2" style={{ color }} />

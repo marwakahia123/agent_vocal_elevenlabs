@@ -2,7 +2,6 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const ELEVENLABS_API_BASE = "https://api.elevenlabs.io";
-const COST_PER_MINUTE_EUR = 0.12; // ~0.02 Twilio + ~0.10 ElevenLabs
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -168,7 +167,7 @@ Deno.serve(async (req) => {
 
       // Process contacts sequentially (up to 3 per invocation to avoid timeout)
       let processed = 0;
-      const MAX_PER_INVOCATION = 3;
+      const MAX_PER_INVOCATION = 1;
 
       while (processed < MAX_PER_INVOCATION) {
         // Check if still running
@@ -235,6 +234,7 @@ Deno.serve(async (req) => {
         let conversationId: string | null = null;
         let callStatus = "failed";
         let callDuration = 0;
+        let elCost = 0; // ElevenLabs cost from metadata.charging
 
         try {
           const outboundRes = await fetch(
@@ -249,6 +249,11 @@ Deno.serve(async (req) => {
                 agent_id: agent.elevenlabs_agent_id,
                 agent_phone_number_id: phoneNumberId,
                 to_number: toNumber,
+                conversation_initiation_client_data: {
+                  dynamic_variables: {
+                    caller_phone: toNumber,
+                  },
+                },
               }),
             }
           );
@@ -267,7 +272,7 @@ Deno.serve(async (req) => {
 
           // Create conversation record
           if (conversationId) {
-            await supabase.from("conversations").insert({
+            const { data: convRecord } = await supabase.from("conversations").insert({
               user_id: campaign.user_id,
               agent_id: agent.id,
               elevenlabs_agent_id: agent.elevenlabs_agent_id,
@@ -275,18 +280,21 @@ Deno.serve(async (req) => {
               status: "active",
               call_type: "outbound",
               caller_phone: toNumber,
-            });
+            }).select("id").single();
 
-            await supabase.from("campaign_contacts").update({
-              conversation_id: conversationId,
-            }).eq("id", nextContact.id);
+            if (convRecord) {
+              await supabase.from("campaign_contacts").update({
+                conversation_id: convRecord.id,
+              }).eq("id", nextContact.id);
+            }
           }
 
-          // Poll for call completion (max 120s)
+          // Poll for call completion (max 80s to stay within Supabase edge function timeout ~150s)
           if (conversationId) {
-            const maxWait = 120;
+            const maxWait = 80;
             const pollInterval = 5;
             let waited = 0;
+            let lastKnownStatus = "initiated";
 
             while (waited < maxWait) {
               await sleep(pollInterval * 1000);
@@ -300,15 +308,24 @@ Deno.serve(async (req) => {
 
                 if (convRes.ok) {
                   const convData = await convRes.json();
+                  lastKnownStatus = convData.status;
                   console.log(`[campaign-outbound] Poll ${waited}s: status=${convData.status}`);
 
                   if (convData.status === "done" || convData.status === "failed") {
                     callDuration = Math.round(convData.metadata?.call_duration_secs || 0);
-                    callStatus = convData.status === "done" ? "completed" : "failed";
-                    console.log(`[campaign-outbound] Call done: elStatus=${convData.status}, duration=${callDuration}s, transcript=${convData.transcript?.length || 0}`);
+                    const hasTranscript = convData.transcript && convData.transcript.length > 1;
+                    // Extract ElevenLabs cost from charging data
+                    const charging = convData.metadata?.charging;
+                    if (charging?.cost != null) {
+                      elCost = Number(charging.cost);
+                    }
+                    console.log(`[campaign-outbound] Call done: elStatus=${convData.status}, duration=${callDuration}s, transcript=${convData.transcript?.length || 0}, elCost=${elCost}, charging=${JSON.stringify(charging || {})}`);
 
-                    // Check if there was actual conversation (transcript > 0)
-                    if (convData.transcript && convData.transcript.length > 0) {
+                    if (convData.status === "failed") {
+                      callStatus = "failed";
+                    } else if (callDuration === 0 && !hasTranscript) {
+                      callStatus = "no_answer";
+                    } else {
                       callStatus = "completed";
                     }
                     break;
@@ -320,8 +337,14 @@ Deno.serve(async (req) => {
             }
 
             if (waited >= maxWait) {
-              console.log(`[campaign-outbound] Timeout waiting for call completion`);
-              callStatus = "no_answer";
+              console.log(`[campaign-outbound] Timeout at ${waited}s: lastKnownStatus=${lastKnownStatus}`);
+              if (lastKnownStatus === "in-progress" || lastKnownStatus === "processing") {
+                // Call was answered but not yet finished — mark completed, reconciliation will refine
+                callStatus = "completed";
+              } else {
+                // Still "initiated" after 80s = no one answered
+                callStatus = "no_answer";
+              }
             }
           }
         } catch (callErr) {
@@ -329,14 +352,13 @@ Deno.serve(async (req) => {
           callStatus = "failed";
         }
 
-        // Update contact result
-        const contactCost = (callDuration / 60) * COST_PER_MINUTE_EUR;
-        console.log(`[campaign-outbound] Updating contact ${nextContact.id}: status=${callStatus}, duration=${callDuration}, cost=${contactCost}`);
+        // Update contact result — use ElevenLabs real cost
+        const contactCost = elCost;
+        console.log(`[campaign-outbound] Updating contact ${nextContact.id}: status=${callStatus}, duration=${callDuration}, elCost=${contactCost}`);
         const { error: contactUpdateErr } = await supabase.from("campaign_contacts").update({
           status: callStatus,
           call_duration_seconds: callDuration,
           cost_euros: contactCost,
-          conversation_id: conversationId,
         }).eq("id", nextContact.id);
         if (contactUpdateErr) {
           console.error(`[campaign-outbound] Contact update error:`, contactUpdateErr.message, contactUpdateErr.details);
