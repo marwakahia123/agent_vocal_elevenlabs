@@ -268,6 +268,60 @@ export interface AgentRdvConfig {
   updated_at: string;
 }
 
+// Agent Order Config
+export interface AgentOrderConfig {
+  id: string;
+  agent_id: string;
+  user_id: string;
+  transfer_enabled: boolean;
+  always_transfer: boolean;
+  transfer_conditions: TransferCondition[];
+  default_transfer_number: string | null;
+  sms_enabled: boolean;
+  email_enabled: boolean;
+  currency: string;
+  tax_rate: number;
+  webhook_secret: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Order
+export interface Order {
+  id: string;
+  user_id: string;
+  contact_id: string | null;
+  agent_id: string | null;
+  conversation_id: string | null;
+  order_number: string;
+  client_name: string;
+  client_phone: string;
+  client_email: string | null;
+  notes: string | null;
+  subtotal_amount: number;
+  tax_amount: number;
+  total_amount: number;
+  currency: string;
+  status: "pending" | "confirmed" | "preparing" | "ready" | "delivered" | "cancelled";
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  order_items?: OrderItem[];
+  contact?: Contact;
+}
+
+// Order Item
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  item_name: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  notes: string | null;
+  created_at: string;
+}
+
 // Dashboard aggregated stats
 export interface DashboardStats {
   total_calls: number;

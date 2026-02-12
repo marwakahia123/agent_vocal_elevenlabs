@@ -44,7 +44,7 @@ export interface ConversationConfig {
 export interface Agent {
   agent_id: string;
   name: string;
-  agent_type?: "standard" | "rdv" | "support";
+  agent_type?: "standard" | "rdv" | "support" | "order";
   conversation_config: ConversationConfig;
   created_at_unix_secs?: number;
   metadata?: Record<string, unknown>;

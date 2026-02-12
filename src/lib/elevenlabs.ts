@@ -66,6 +66,15 @@ export async function updateSupportAgent(agentId: string, formData: Record<strin
   return invokeFunction<Agent>("update-support-agent", { agentId, ...formData });
 }
 
+// Order Agent
+export async function createOrderAgent(formData: Record<string, unknown>): Promise<{ agent_id: string }> {
+  return invokeFunction<{ agent_id: string }>("create-order-agent", formData);
+}
+
+export async function updateOrderAgent(agentId: string, formData: Record<string, unknown>): Promise<Agent> {
+  return invokeFunction<Agent>("update-order-agent", { agentId, ...formData });
+}
+
 // Conversations
 export async function startConversation(elevenlabsAgentId: string): Promise<DbConversation> {
   return invokeFunction<DbConversation>("save-conversation", {

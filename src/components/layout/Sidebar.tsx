@@ -13,6 +13,7 @@ import {
   Megaphone,
   Calendar,
   Ticket,
+  ShoppingCart,
   MessageSquare,
   CreditCard,
   LogOut,
@@ -52,6 +53,7 @@ const navigation: NavSection[] = [
       { label: "Contacts", href: "/contacts", icon: <Users size={18} /> },
       { label: "Rendez-vous", href: "/rendez-vous", icon: <Calendar size={18} /> },
       { label: "Tickets", href: "/tickets", icon: <Ticket size={18} /> },
+      { label: "Commandes", href: "/commandes", icon: <ShoppingCart size={18} /> },
     ],
   },
   {

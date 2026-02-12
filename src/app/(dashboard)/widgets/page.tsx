@@ -22,7 +22,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { Widget } from "@/types/database";
 
 interface WidgetWithAgent extends Widget {
-  agent?: { name: string } | null;
+  agent?: { name: string; elevenlabs_agent_id: string } | null;
 }
 
 // ===================== CREATE WIDGET MODAL =====================
@@ -186,7 +186,7 @@ export default function WidgetsPage() {
       if (!user) return;
       const { data, error } = await supabase
         .from("widgets")
-        .select("*, agent:agents(name)")
+        .select("*, agent:agents(name, elevenlabs_agent_id)")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -227,8 +227,14 @@ export default function WidgetsPage() {
     }
   };
 
-  const copyEmbed = (token: string) => {
-    const code = `<script src="https://hallcall.fr/widget.js" data-token="${token}"></script>`;
+  const copyEmbed = (widget: WidgetWithAgent) => {
+    const elAgentId = widget.agent?.elevenlabs_agent_id;
+    if (!elAgentId) {
+      toast.error("Associez un agent a ce widget d'abord");
+      return;
+    }
+    const appUrl = typeof window !== "undefined" ? window.location.origin : "https://hallcall.fr";
+    const code = `<hallcall agent-id="${elAgentId}"></hallcall>\n<script src="${appUrl}/api/widgets/script/${elAgentId}"></script>`;
     navigator.clipboard.writeText(code);
     toast.success("Code d'integration copie !");
   };
@@ -313,7 +319,7 @@ export default function WidgetsPage() {
                 >
                   <Settings2 size={14} /> Configurer
                 </Link>
-                <button className="btn-ghost text-[0.8125rem] flex items-center gap-1" onClick={() => copyEmbed(widget.embed_token)}>
+                <button className="btn-ghost text-[0.8125rem] flex items-center gap-1" onClick={() => copyEmbed(widget)}>
                   <Code size={14} /> Code
                 </button>
                 <button className="btn-ghost text-[0.8125rem] flex items-center gap-1" onClick={() => toggleWidget(widget)}>

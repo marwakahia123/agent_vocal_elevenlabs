@@ -204,6 +204,7 @@ function WidgetPreview({
   const [isConnected, setIsConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [mode, setMode] = useState<string>("idle");
+  const [ripples, setRipples] = useState<number[]>([]);
 
   const conversation = useConversation({
     onConnect: () => {
@@ -412,23 +413,88 @@ function WidgetPreview({
       )}
 
       {/* Floating orb button */}
-      <button
-        onClick={() => {
-          if (isConnected) {
-            handleEndCall();
-          }
-          setShowPopup(!showPopup);
-        }}
-        className="absolute bottom-4 right-4 w-14 h-14 flex items-center justify-center text-white cursor-pointer transition-transform hover:scale-105"
-        style={{
-          borderRadius: `${config.buttonRadius}%`,
-          background: orbGradient,
-          border: `3px solid ${config.borderColor}`,
-          boxShadow: `0 0 20px rgba(0,0,0,0.2), 0 0 40px ${config.avatarColor2}33`,
-        }}
+      <style>{`
+        @keyframes hc-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+        @keyframes hc-glow{0%,100%{box-shadow:0 4px 24px rgba(0,0,0,0.15),0 0 20px ${config.avatarColor2}55}50%{box-shadow:0 4px 24px rgba(0,0,0,0.15),0 0 40px ${config.avatarColor2}55,0 0 60px ${config.avatarColor2}33}}
+        @keyframes hc-ripple{0%{transform:scale(0.8);opacity:0.6}100%{transform:scale(2.5);opacity:0}}
+        @keyframes hc-spin-grad{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+      `}</style>
+      <div
+        className="absolute bottom-4 right-4"
+        style={{ animation: "hc-float 3s ease-in-out infinite" }}
       >
-        {showPopup ? <X size={22} /> : <Phone size={22} />}
-      </button>
+        <button
+          onClick={() => {
+            if (isConnected) {
+              handleEndCall();
+            }
+            setRipples((prev) => [...prev, Date.now()]);
+            setTimeout(() => setRipples((prev) => prev.slice(1)), 700);
+            setShowPopup(!showPopup);
+          }}
+          className="relative w-16 h-16 flex items-center justify-center text-white cursor-pointer"
+          style={{
+            borderRadius: `${config.buttonRadius}%`,
+            background: "transparent",
+            border: "none",
+            animation: "hc-glow 2.5s ease-in-out infinite",
+            overflow: "visible",
+          }}
+        >
+          {/* Spinning gradient ring */}
+          <div
+            className="absolute inset-[-3px]"
+            style={{
+              borderRadius: `${config.buttonRadius}%`,
+              background: `conic-gradient(from 0deg, ${config.avatarColor1}, ${config.avatarColor2}, transparent, ${config.avatarColor1})`,
+              animation: "hc-spin-grad 4s linear infinite",
+            }}
+          />
+          {/* Inner circle - adapts to avatarType */}
+          <div
+            className="absolute inset-[3px] flex items-center justify-center overflow-hidden"
+            style={{
+              borderRadius: `${config.buttonRadius}%`,
+              background:
+                (config.avatarType === "image" || config.avatarType === "link") && config.avatarImageUrl
+                  ? "transparent"
+                  : orbGradient,
+            }}
+          >
+            {(config.avatarType === "image" || config.avatarType === "link") && config.avatarImageUrl ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={config.avatarImageUrl}
+                  alt="Avatar"
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{ borderRadius: `${config.buttonRadius}%` }}
+                />
+                <div className="relative z-10 flex items-center justify-center w-full h-full bg-black/20"
+                  style={{ borderRadius: `${config.buttonRadius}%` }}
+                >
+                  {showPopup ? <X size={22} /> : <Phone size={22} />}
+                </div>
+              </>
+            ) : (
+              showPopup ? <X size={22} /> : <Phone size={22} />
+            )}
+          </div>
+          {/* Ripple effects */}
+          {ripples.map((id) => (
+            <div
+              key={id}
+              className="absolute inset-0"
+              style={{
+                borderRadius: "50%",
+                border: `2px solid ${config.avatarColor2}`,
+                animation: "hc-ripple 0.6s ease-out forwards",
+                pointerEvents: "none",
+              }}
+            />
+          ))}
+        </button>
+      </div>
     </div>
   );
 }
@@ -683,9 +749,9 @@ export default function WidgetConfiguratorPage() {
               </div>
             )}
 
-            {config.avatarType === "image" && (
+            {(config.avatarType === "image" || config.avatarType === "link") && (
               <TextInput
-                label="URL de l'image"
+                label={config.avatarType === "link" ? "URL du lien (image/logo)" : "URL de l'image"}
                 value={config.avatarImageUrl}
                 onChange={(v) => updateConfig("avatarImageUrl", v)}
               />
