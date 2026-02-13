@@ -75,6 +75,15 @@ export async function updateOrderAgent(agentId: string, formData: Record<string,
   return invokeFunction<Agent>("update-order-agent", { agentId, ...formData });
 }
 
+// Commercial Agent
+export async function createCommercialAgent(formData: Record<string, unknown>): Promise<{ agent_id: string }> {
+  return invokeFunction<{ agent_id: string }>("create-commercial-agent", formData);
+}
+
+export async function updateCommercialAgent(agentId: string, formData: Record<string, unknown>): Promise<Agent> {
+  return invokeFunction<Agent>("update-commercial-agent", { agentId, ...formData });
+}
+
 // Conversations
 export async function startConversation(elevenlabsAgentId: string): Promise<DbConversation> {
   return invokeFunction<DbConversation>("save-conversation", {
@@ -94,9 +103,11 @@ export async function saveMessage(conversationId: string, source: "user" | "ai",
   return invokeFunction("save-message", { conversationId, source, content });
 }
 
-export async function listConversations(elevenlabsAgentId?: string): Promise<ConversationsListResponse> {
+export async function listConversations(elevenlabsAgentId?: string, page?: number, pageSize?: number): Promise<ConversationsListResponse> {
   return invokeFunction<ConversationsListResponse>("list-conversations", {
     elevenlabsAgentId,
+    page: page || 1,
+    pageSize: pageSize || 20,
   });
 }
 

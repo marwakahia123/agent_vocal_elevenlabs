@@ -88,8 +88,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { elevenlabsAgentId } = await req.json();
-    console.log("[list-conversations] user:", user.id, "elevenlabsAgentId:", elevenlabsAgentId);
+    const { elevenlabsAgentId, page = 1, pageSize = 20 } = await req.json();
+    console.log("[list-conversations] user:", user.id, "elevenlabsAgentId:", elevenlabsAgentId, "page:", page, "pageSize:", pageSize);
+
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
     let query = supabase
       .from("conversations")
@@ -114,23 +117,24 @@ Deno.serve(async (req) => {
           content,
           created_at
         )
-      `)
+      `, { count: "exact" })
       .eq("user_id", user.id)
       .order("started_at", { ascending: false })
-      .limit(50);
+      .range(from, to);
 
     if (elevenlabsAgentId) {
       query = query.eq("elevenlabs_agent_id", elevenlabsAgentId);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
+    const totalCount = count || 0;
 
-    console.log("[list-conversations] found:", data?.length || 0, "conversations, error:", error?.message || "none");
+    console.log("[list-conversations] found:", data?.length || 0, "of", totalCount, "conversations, error:", error?.message || "none");
 
     if (error) throw error;
 
     if (!data || data.length === 0) {
-      return new Response(JSON.stringify({ conversations: [] }), {
+      return new Response(JSON.stringify({ conversations: [], totalCount: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -317,7 +321,7 @@ Deno.serve(async (req) => {
         console.error("[list-conversations] campaign stats reconcile error:", statsErr);
       }
 
-      return new Response(JSON.stringify({ conversations: enrichedConversations }), {
+      return new Response(JSON.stringify({ conversations: enrichedConversations, totalCount }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

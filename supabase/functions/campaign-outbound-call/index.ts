@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
       // Load campaign with agent
       const { data: campaign, error: campError } = await supabase
         .from("campaign_groups")
-        .select("*, agent:agents(id, name, elevenlabs_agent_id)")
+        .select("*, agent:agents(id, name, elevenlabs_agent_id, agent_type)")
         .eq("id", campaign_id)
         .single();
 
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Campagne introuvable" }, 404);
       }
 
-      const agent = campaign.agent as { id: string; name: string; elevenlabs_agent_id: string } | null;
+      const agent = campaign.agent as { id: string; name: string; elevenlabs_agent_id: string; agent_type: string | null } | null;
       if (!agent?.elevenlabs_agent_id) {
         return jsonResponse({ error: "Aucun agent associe a cette campagne" }, 400);
       }
@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
         // Find next pending contact
         const { data: nextContact } = await supabase
           .from("campaign_contacts")
-          .select("*, contact:contacts(first_name, last_name, phone)")
+          .select("*, contact:contacts(first_name, last_name, phone, email, company, notes, tags)")
           .eq("campaign_id", campaign_id)
           .eq("status", "pending")
           .order("created_at")
@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
           break;
         }
 
-        const contact = nextContact.contact as { first_name: string; last_name: string; phone: string | null } | null;
+        const contact = nextContact.contact as { first_name: string; last_name: string; phone: string | null; email: string | null; company: string | null; notes: string | null; tags: string[] | null } | null;
         if (!contact?.phone) {
           console.log(`[campaign-outbound] Contact ${nextContact.contact_id} has no phone, marking failed`);
           await supabase.from("campaign_contacts").update({ status: "failed", notes: "Pas de numero" }).eq("id", nextContact.id);
@@ -252,6 +252,20 @@ Deno.serve(async (req) => {
                 conversation_initiation_client_data: {
                   dynamic_variables: {
                     caller_phone: toNumber,
+                    current_date: new Date().toLocaleDateString("fr-FR", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    }),
+                    // For commercial agents, inject full contact context
+                    ...(agent.agent_type === "commercial" && contact ? {
+                      contact_name: `${contact.first_name} ${contact.last_name}`.trim(),
+                      contact_company: contact.company || "",
+                      contact_email: contact.email || "",
+                      contact_notes: contact.notes || "",
+                      contact_tags: (contact.tags || []).join(", "),
+                    } : {}),
                   },
                 },
               }),
@@ -268,7 +282,8 @@ Deno.serve(async (req) => {
 
           const outboundData = await outboundRes.json();
           conversationId = outboundData.conversation_id || null;
-          console.log(`[campaign-outbound] Call initiated, conversation_id: ${conversationId}`);
+          const twilioCallSid = outboundData.callSid || outboundData.call_sid || null;
+          console.log(`[campaign-outbound] Call initiated, conversation_id: ${conversationId}, twilio_call_sid: ${twilioCallSid}`);
 
           // Create conversation record
           if (conversationId) {
@@ -280,12 +295,31 @@ Deno.serve(async (req) => {
               status: "active",
               call_type: "outbound",
               caller_phone: toNumber,
+              twilio_call_sid: twilioCallSid,
             }).select("id").single();
 
             if (convRecord) {
               await supabase.from("campaign_contacts").update({
                 conversation_id: convRecord.id,
               }).eq("id", nextContact.id);
+
+              // Create lead with "pending" status for every outbound call
+              if (agent.agent_type === "commercial") {
+                await supabase.from("leads").insert({
+                  user_id: campaign.user_id,
+                  contact_id: nextContact.contact_id,
+                  agent_id: agent.id,
+                  conversation_id: convRecord.id,
+                  campaign_contact_id: nextContact.id,
+                  status: "pending",
+                  interest_level: null,
+                  contact_name: contact ? `${contact.first_name} ${contact.last_name}`.trim() : null,
+                  contact_phone: contact?.phone || null,
+                  contact_email: contact?.email || null,
+                  contact_company: contact?.company || null,
+                });
+                console.log(`[campaign-outbound] Created pending lead for contact ${nextContact.contact_id}`);
+              }
             }
           }
 
@@ -377,6 +411,37 @@ Deno.serve(async (req) => {
             ended_at: new Date().toISOString(),
           }).eq("elevenlabs_conversation_id", conversationId);
           if (convUpdateErr) console.error(`[campaign-outbound] Conversation update error:`, convUpdateErr.message);
+        }
+
+        // Update lead status for no_answer/failed calls (commercial agents)
+        if (agent.agent_type === "commercial" && (callStatus === "no_answer" || callStatus === "failed")) {
+          await supabase.from("leads")
+            .update({
+              status: "not_interested",
+              notes: callStatus === "no_answer" ? "Pas de reponse" : "Appel echoue",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("campaign_contact_id", nextContact.id);
+          console.log(`[campaign-outbound] Updated lead to not_interested (${callStatus})`);
+        }
+
+        // Safety net: for completed calls, auto-qualify pending leads
+        if (agent.agent_type === "commercial" && callStatus === "completed") {
+          const { data: pendingLead } = await supabase
+            .from("leads")
+            .select("id, status")
+            .eq("campaign_contact_id", nextContact.id)
+            .eq("status", "pending")
+            .maybeSingle();
+
+          if (pendingLead) {
+            await supabase.from("leads").update({
+              status: "interested",
+              notes: `Appel termine (${callDuration || 0}s) — qualification automatique`,
+              updated_at: new Date().toISOString(),
+            }).eq("id", pendingLead.id);
+            console.log(`[campaign-outbound] Auto-qualified pending lead ${pendingLead.id} as interested (completed call)`);
+          }
         }
 
         // Update campaign stats

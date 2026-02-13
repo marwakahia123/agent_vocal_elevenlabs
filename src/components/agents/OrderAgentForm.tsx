@@ -11,7 +11,7 @@ import { SUPPORTED_LANGUAGES, LLM_MODELS, DEFAULT_FORM_VALUES } from "@/lib/cons
 import { listVoices, createOrderAgent, updateOrderAgent, uploadKnowledgeBase } from "@/lib/elevenlabs";
 import { createClient } from "@/lib/supabase/client";
 import type { Voice, CreateAgentFormData } from "@/types/elevenlabs";
-import type { KnowledgeBaseItem } from "@/types/database";
+import type { KnowledgeBaseItem, NotificationTemplate } from "@/types/database";
 
 const CURRENCIES = [
   { code: "EUR", label: "Euro (EUR)" },
@@ -128,6 +128,10 @@ export default function OrderAgentForm({ onCreated, onCancel, editMode, agentId,
   // Notifications
   const [smsEnabled, setSmsEnabled] = useState(false);
   const [emailEnabled, setEmailEnabled] = useState(false);
+  const [smsTemplateId, setSmsTemplateId] = useState<string>("");
+  const [emailTemplateId, setEmailTemplateId] = useState<string>("");
+  const [smsTemplates, setSmsTemplates] = useState<NotificationTemplate[]>([]);
+  const [emailTemplates, setEmailTemplates] = useState<NotificationTemplate[]>([]);
 
   // Submit
   const [submitting, setSubmitting] = useState(false);
@@ -177,6 +181,8 @@ export default function OrderAgentForm({ onCreated, onCancel, editMode, agentId,
           setDefaultTransferNumber(config.default_transfer_number || "");
           setSmsEnabled(config.sms_enabled ?? false);
           setEmailEnabled(config.email_enabled ?? false);
+          setSmsTemplateId(config.sms_template_id || "");
+          setEmailTemplateId(config.email_template_id || "");
 
           const conditions = (config.transfer_conditions as TransferConditionForm[]) || [];
           if (conditions.length > 0) {
@@ -204,6 +210,25 @@ export default function OrderAgentForm({ onCreated, onCancel, editMode, agentId,
       }
     })();
   }, [editMode, agentId]);
+
+  // Load notification templates for order agent
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("notification_templates")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("agent_type", "order")
+        .order("name");
+      if (data) {
+        setSmsTemplates((data as NotificationTemplate[]).filter((t) => t.channel === "sms"));
+        setEmailTemplates((data as NotificationTemplate[]).filter((t) => t.channel === "email"));
+      }
+    })();
+  }, []);
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -311,6 +336,8 @@ export default function OrderAgentForm({ onCreated, onCancel, editMode, agentId,
         default_transfer_number: defaultTransferNumber,
         sms_enabled: smsEnabled,
         email_enabled: emailEnabled,
+        sms_template_id: smsTemplateId || null,
+        email_template_id: emailTemplateId || null,
         currency,
         tax_rate: taxRate / 100, // Convert percentage to decimal
       };
@@ -761,11 +788,23 @@ export default function OrderAgentForm({ onCreated, onCancel, editMode, agentId,
         <p className="text-sm text-slate-500 mb-4">Envoyer automatiquement la facture par SMS apres chaque commande validee</p>
 
         {smsEnabled && (
-          <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
-            <Info size={18} className="shrink-0 mt-0.5" />
-            <p className="m-0">
-              Les SMS seront envoyes via Twilio. Assurez-vous que votre compte Twilio est configure et que vous avez suffisamment de credits.
-            </p>
+          <div className="space-y-3">
+            <div>
+              <label className="label">Template SMS</label>
+              <select className="input-field" value={smsTemplateId} onChange={(e) => setSmsTemplateId(e.target.value)}>
+                <option value="">Template par defaut</option>
+                {smsTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-400 mt-1">Gerez vos templates dans Notifications &gt; Templates</p>
+            </div>
+            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
+              <Info size={18} className="shrink-0 mt-0.5" />
+              <p className="m-0">
+                Les SMS seront envoyes via Twilio. Assurez-vous que votre compte Twilio est configure et que vous avez suffisamment de credits.
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -785,11 +824,23 @@ export default function OrderAgentForm({ onCreated, onCancel, editMode, agentId,
         <p className="text-sm text-slate-500 mb-4">Envoyer automatiquement la facture detaillee par email apres chaque commande validee</p>
 
         {emailEnabled && (
-          <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
-            <Info size={18} className="shrink-0 mt-0.5" />
-            <p className="m-0">
-              Les emails seront envoyes via votre integration configuree (Google/Microsoft ou Resend en fallback).
-            </p>
+          <div className="space-y-3">
+            <div>
+              <label className="label">Template Email</label>
+              <select className="input-field" value={emailTemplateId} onChange={(e) => setEmailTemplateId(e.target.value)}>
+                <option value="">Template par defaut</option>
+                {emailTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-400 mt-1">Gerez vos templates dans Notifications &gt; Templates</p>
+            </div>
+            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
+              <Info size={18} className="shrink-0 mt-0.5" />
+              <p className="m-0">
+                Les emails seront envoyes via votre integration configuree (Google/Microsoft ou Resend en fallback).
+              </p>
+            </div>
           </div>
         )}
       </div>

@@ -250,7 +250,8 @@ body {
 /* Sidebar */
 .sidebar {
   width: 260px;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   background-color: var(--sidebar-bg);
   color: var(--sidebar-text);
   display: flex;
@@ -491,5 +492,8 @@ body {
   }
   .mobile-sidebar-toggle {
     display: block;
+  }
+  .topbar {
+    padding: 0 1rem;
   }
 }

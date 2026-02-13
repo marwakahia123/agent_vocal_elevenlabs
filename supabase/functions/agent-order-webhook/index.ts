@@ -18,6 +18,27 @@ interface OrderConfig {
   currency: string;
   tax_rate: number;
   webhook_secret: string;
+  sms_template_id: string | null;
+  email_template_id: string | null;
+}
+
+function replaceTemplateVars(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '');
+}
+
+function wrapInEmailLayout(headerColor: string, title: string, bodyHtml: string): string {
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #1e293b;">
+  <div style="background: ${headerColor}; color: white; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+    <h1 style="margin: 0; font-size: 22px;">${title}</h1>
+  </div>
+  <div style="border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+    ${bodyHtml}
+    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+    <p style="color: #94a3b8; font-size: 12px; text-align: center;">Ce message a ete envoye automatiquement par HallCall.</p>
+  </div>
+</body></html>`.trim();
 }
 
 // ========== Handler: Search Client ==========
@@ -136,7 +157,14 @@ async function handleRegisterClient(
 
   if (existing && existing.length > 0) {
     const c = existing[0];
-    return `Ce client existe deja: ${c.first_name} ${c.last_name} (Tel: ${c.phone}, Email: ${c.email || "N/A"}).`;
+    // Update missing fields if new data provided
+    const updates: Record<string, string> = {};
+    if (email?.trim() && !c.email) updates.email = email.trim();
+    if (Object.keys(updates).length > 0) {
+      await supabase.from("contacts").update(updates).eq("id", c.id);
+      console.log(`[OrderWebhook] Updated existing contact ${c.id} with:`, updates);
+    }
+    return `Ce client existe deja: ${c.first_name} ${c.last_name} (Tel: ${c.phone}, Email: ${email?.trim() || c.email || "N/A"}).`;
   }
 
   const { data: newContact, error } = await supabase
@@ -295,6 +323,121 @@ async function handleSaveOrder(
   return resultMsg;
 }
 
+// ========== Default Content Builders ==========
+function buildDefaultSmsContent(
+  order: Record<string, unknown>,
+  items: Record<string, unknown>[] | null,
+  orderNumber: string
+): string {
+  let smsContent = `Votre commande ${orderNumber}:\n`;
+
+  if (items && items.length > 0) {
+    for (const item of items) {
+      smsContent += `${item.quantity}x ${(item as { item_name: string }).item_name} - ${Number(item.subtotal).toFixed(2)} ${order.currency}\n`;
+    }
+  }
+
+  smsContent += `---\n`;
+  if (Number(order.tax_amount) > 0) {
+    smsContent += `Sous-total: ${Number(order.subtotal_amount).toFixed(2)} ${order.currency}\n`;
+    smsContent += `TVA: ${Number(order.tax_amount).toFixed(2)} ${order.currency}\n`;
+  }
+  smsContent += `TOTAL: ${Number(order.total_amount).toFixed(2)} ${order.currency}\n`;
+  smsContent += `Merci pour votre commande !`;
+
+  return smsContent;
+}
+
+function buildDefaultEmailHtml(
+  order: Record<string, unknown>,
+  items: Record<string, unknown>[] | null,
+  orderNumber: string,
+  orderDate: string,
+  headerColor: string = "#0f172a"
+): string {
+  let itemsHtml = "";
+  if (items && items.length > 0) {
+    for (const item of items) {
+      itemsHtml += `
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 12px 16px; font-size: 14px; color: #334155;">${(item as { item_name: string }).item_name}</td>
+          <td style="padding: 12px 16px; text-align: center; font-size: 14px; color: #334155;">${item.quantity}</td>
+          <td style="padding: 12px 16px; text-align: right; font-size: 14px; color: #334155;">${Number(item.unit_price).toFixed(2)} ${order.currency}</td>
+          <td style="padding: 12px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #0f172a;">${Number(item.subtotal).toFixed(2)} ${order.currency}</td>
+        </tr>`;
+    }
+  }
+
+  let totalsHtml = `
+    <tr>
+      <td colspan="3" style="padding: 12px 16px; text-align: right; font-size: 14px; color: #64748b;">Sous-total</td>
+      <td style="padding: 12px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #0f172a;">${Number(order.subtotal_amount).toFixed(2)} ${order.currency}</td>
+    </tr>`;
+
+  if (Number(order.tax_amount) > 0) {
+    totalsHtml += `
+    <tr>
+      <td colspan="3" style="padding: 8px 16px; text-align: right; font-size: 14px; color: #64748b;">TVA</td>
+      <td style="padding: 8px 16px; text-align: right; font-size: 14px; color: #0f172a;">${Number(order.tax_amount).toFixed(2)} ${order.currency}</td>
+    </tr>`;
+  }
+
+  totalsHtml += `
+    <tr style="border-top: 2px solid ${headerColor};">
+      <td colspan="3" style="padding: 16px; text-align: right; font-size: 16px; font-weight: 700; color: ${headerColor};">TOTAL</td>
+      <td style="padding: 16px; text-align: right; font-size: 16px; font-weight: 700; color: ${headerColor};">${Number(order.total_amount).toFixed(2)} ${order.currency}</td>
+    </tr>`;
+
+  return `
+<!DOCTYPE html>
+<html>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+    <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <!-- Header -->
+      <div style="background: ${headerColor}; padding: 32px; text-align: center;">
+        <h1 style="margin: 0; color: white; font-size: 24px; font-weight: 700;">Facture</h1>
+        <p style="margin: 8px 0 0; color: #94a3b8; font-size: 14px;">Commande ${orderNumber}</p>
+      </div>
+
+      <!-- Content -->
+      <div style="padding: 32px;">
+        <p style="margin: 0 0 8px; font-size: 14px; color: #64748b;">Bonjour <strong style="color: #0f172a;">${order.client_name}</strong>,</p>
+        <p style="margin: 0 0 24px; font-size: 14px; color: #64748b;">Merci pour votre commande. Voici le detail :</p>
+
+        <p style="margin: 0 0 8px; font-size: 12px; color: #94a3b8;">Date : ${orderDate}</p>
+
+        <!-- Items table -->
+        <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+          <thead>
+            <tr style="border-bottom: 2px solid ${headerColor};">
+              <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase;">Article</th>
+              <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase;">Qte</th>
+              <th style="padding: 12px 16px; text-align: right; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase;">Prix unit.</th>
+              <th style="padding: 12px 16px; text-align: right; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+          <tfoot>
+            ${totalsHtml}
+          </tfoot>
+        </table>
+
+        ${order.notes ? `<p style="margin: 24px 0 0; padding: 16px; background: #f1f5f9; border-radius: 8px; font-size: 13px; color: #475569;"><strong>Notes :</strong> ${order.notes}</p>` : ""}
+      </div>
+
+      <!-- Footer -->
+      <div style="padding: 24px 32px; background: #f8fafc; text-align: center; border-top: 1px solid #e2e8f0;">
+        <p style="margin: 0; font-size: 13px; color: #94a3b8;">Merci pour votre confiance !</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`.trim();
+}
+
 // ========== Handler: Send SMS Invoice ==========
 async function handleSendSmsInvoice(
   supabase: ReturnType<typeof createClient>,
@@ -324,22 +467,47 @@ async function handleSendSmsInvoice(
     .select("*")
     .eq("order_id", order.id);
 
-  // Build SMS content
-  let smsContent = `Votre commande ${orderNumber}:\n`;
+  // Build items list for template vars
+  const itemsList = (items && items.length > 0)
+    ? items.map((item: Record<string, unknown>) => `${item.quantity}x ${(item as { item_name: string }).item_name} - ${Number(item.subtotal).toFixed(2)} ${order.currency}`).join("\n")
+    : "";
 
-  if (items && items.length > 0) {
-    for (const item of items) {
-      smsContent += `${item.quantity}x ${item.item_name} - ${item.subtotal.toFixed(2)} ${order.currency}\n`;
+  const orderDate = new Date(order.created_at).toLocaleDateString("fr-FR", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  });
+
+  let smsContent: string;
+
+  if (config.sms_template_id) {
+    // Load custom template
+    const { data: template } = await supabase
+      .from("notification_templates")
+      .select("*")
+      .eq("id", config.sms_template_id)
+      .single();
+
+    if (template) {
+      const vars: Record<string, string> = {
+        client_name: order.client_name || "",
+        client_phone: order.client_phone || "",
+        client_email: order.client_email || "",
+        order_number: orderNumber,
+        items_list: itemsList,
+        subtotal: `${Number(order.subtotal_amount).toFixed(2)} ${order.currency}`,
+        tax_amount: `${Number(order.tax_amount).toFixed(2)} ${order.currency}`,
+        total_amount: `${Number(order.total_amount).toFixed(2)} ${order.currency}`,
+        currency: order.currency || "EUR",
+        notes: order.notes || "",
+        order_date: orderDate,
+      };
+      smsContent = replaceTemplateVars(template.content, vars);
+    } else {
+      console.log(`[OrderWebhook] SMS template ${config.sms_template_id} not found, using default`);
+      smsContent = buildDefaultSmsContent(order, items, orderNumber);
     }
+  } else {
+    smsContent = buildDefaultSmsContent(order, items, orderNumber);
   }
-
-  smsContent += `---\n`;
-  if (order.tax_amount > 0) {
-    smsContent += `Sous-total: ${order.subtotal_amount.toFixed(2)} ${order.currency}\n`;
-    smsContent += `TVA: ${order.tax_amount.toFixed(2)} ${order.currency}\n`;
-  }
-  smsContent += `TOTAL: ${order.total_amount.toFixed(2)} ${order.currency}\n`;
-  smsContent += `Merci pour votre commande !`;
 
   // Send SMS via existing function
   try {
@@ -397,7 +565,22 @@ async function handleSendEmailInvoice(
     return `Commande ${orderNumber} introuvable.`;
   }
 
-  if (!order.client_email) {
+  // Try to get email from contact if not on the order
+  let clientEmail = order.client_email;
+  if (!clientEmail && order.contact_id) {
+    const { data: contact } = await supabase
+      .from("contacts")
+      .select("email")
+      .eq("id", order.contact_id)
+      .maybeSingle();
+    if (contact?.email) {
+      clientEmail = contact.email;
+      // Also update the order for future reference
+      await supabase.from("orders").update({ client_email: clientEmail }).eq("id", order.id);
+      console.log(`[OrderWebhook] Updated order ${order.order_number} with email from contact: ${clientEmail}`);
+    }
+  }
+  if (!clientEmail) {
     return "L'adresse email du client n'est pas disponible. Impossible d'envoyer la facture par email.";
   }
 
@@ -406,92 +589,59 @@ async function handleSendEmailInvoice(
     .select("*")
     .eq("order_id", order.id);
 
-  // Build HTML invoice
-  let itemsHtml = "";
-  if (items && items.length > 0) {
-    for (const item of items) {
-      itemsHtml += `
-        <tr style="border-bottom: 1px solid #e2e8f0;">
-          <td style="padding: 12px 16px; font-size: 14px; color: #334155;">${item.item_name}</td>
-          <td style="padding: 12px 16px; text-align: center; font-size: 14px; color: #334155;">${item.quantity}</td>
-          <td style="padding: 12px 16px; text-align: right; font-size: 14px; color: #334155;">${item.unit_price.toFixed(2)} ${order.currency}</td>
-          <td style="padding: 12px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #0f172a;">${item.subtotal.toFixed(2)} ${order.currency}</td>
-        </tr>`;
-    }
-  }
-
-  let totalsHtml = `
-    <tr>
-      <td colspan="3" style="padding: 12px 16px; text-align: right; font-size: 14px; color: #64748b;">Sous-total</td>
-      <td style="padding: 12px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #0f172a;">${order.subtotal_amount.toFixed(2)} ${order.currency}</td>
-    </tr>`;
-
-  if (order.tax_amount > 0) {
-    totalsHtml += `
-    <tr>
-      <td colspan="3" style="padding: 8px 16px; text-align: right; font-size: 14px; color: #64748b;">TVA</td>
-      <td style="padding: 8px 16px; text-align: right; font-size: 14px; color: #0f172a;">${order.tax_amount.toFixed(2)} ${order.currency}</td>
-    </tr>`;
-  }
-
-  totalsHtml += `
-    <tr style="border-top: 2px solid #0f172a;">
-      <td colspan="3" style="padding: 16px; text-align: right; font-size: 16px; font-weight: 700; color: #0f172a;">TOTAL</td>
-      <td style="padding: 16px; text-align: right; font-size: 16px; font-weight: 700; color: #0f172a;">${order.total_amount.toFixed(2)} ${order.currency}</td>
-    </tr>`;
+  // Build items list for template vars
+  const itemsList = (items && items.length > 0)
+    ? items.map((item: Record<string, unknown>) => `${item.quantity}x ${(item as { item_name: string }).item_name} - ${Number(item.subtotal).toFixed(2)} ${order.currency}`).join("\n")
+    : "";
 
   const orderDate = new Date(order.created_at).toLocaleDateString("fr-FR", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
 
-  const htmlBody = `
-<!DOCTYPE html>
-<html>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc;">
-  <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-    <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-      <!-- Header -->
-      <div style="background: #0f172a; padding: 32px; text-align: center;">
-        <h1 style="margin: 0; color: white; font-size: 24px; font-weight: 700;">Facture</h1>
-        <p style="margin: 8px 0 0; color: #94a3b8; font-size: 14px;">Commande ${orderNumber}</p>
-      </div>
+  let emailSubject: string;
+  let htmlBody: string;
 
-      <!-- Content -->
-      <div style="padding: 32px;">
-        <p style="margin: 0 0 8px; font-size: 14px; color: #64748b;">Bonjour <strong style="color: #0f172a;">${order.client_name}</strong>,</p>
-        <p style="margin: 0 0 24px; font-size: 14px; color: #64748b;">Merci pour votre commande. Voici le detail :</p>
+  if (config.email_template_id) {
+    // Load custom template
+    const { data: template } = await supabase
+      .from("notification_templates")
+      .select("*")
+      .eq("id", config.email_template_id)
+      .single();
 
-        <p style="margin: 0 0 8px; font-size: 12px; color: #94a3b8;">Date : ${orderDate}</p>
-
-        <!-- Items table -->
-        <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
-          <thead>
-            <tr style="border-bottom: 2px solid #0f172a;">
-              <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase;">Article</th>
-              <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase;">Qte</th>
-              <th style="padding: 12px 16px; text-align: right; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase;">Prix unit.</th>
-              <th style="padding: 12px 16px; text-align: right; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase;">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsHtml}
-          </tbody>
-          <tfoot>
-            ${totalsHtml}
-          </tfoot>
-        </table>
-
-        ${order.notes ? `<p style="margin: 24px 0 0; padding: 16px; background: #f1f5f9; border-radius: 8px; font-size: 13px; color: #475569;"><strong>Notes :</strong> ${order.notes}</p>` : ""}
-      </div>
-
-      <!-- Footer -->
-      <div style="padding: 24px 32px; background: #f8fafc; text-align: center; border-top: 1px solid #e2e8f0;">
-        <p style="margin: 0; font-size: 13px; color: #94a3b8;">Merci pour votre confiance !</p>
-      </div>
-    </div>
-  </div>
-</body>
-</html>`.trim();
+    if (template) {
+      const vars: Record<string, string> = {
+        client_name: order.client_name || "",
+        client_phone: order.client_phone || "",
+        client_email: clientEmail || "",
+        order_number: orderNumber,
+        items_list: itemsList,
+        subtotal: `${Number(order.subtotal_amount).toFixed(2)} ${order.currency}`,
+        tax_amount: `${Number(order.tax_amount).toFixed(2)} ${order.currency}`,
+        total_amount: `${Number(order.total_amount).toFixed(2)} ${order.currency}`,
+        currency: order.currency || "EUR",
+        notes: order.notes || "",
+        order_date: orderDate,
+      };
+      emailSubject = replaceTemplateVars(template.subject, vars);
+      const renderedContent = replaceTemplateVars(template.content, vars)
+        .replace(/\n/g, "<br>");
+      const tplHeaderColor = template.header_color || "#0f172a";
+      htmlBody = wrapInEmailLayout(
+        tplHeaderColor,
+        emailSubject || `Facture - Commande ${orderNumber}`,
+        renderedContent
+      );
+      console.log(`[OrderWebhook] Email using template (header: ${tplHeaderColor})`);
+    } else {
+      console.log(`[OrderWebhook] Email template ${config.email_template_id} not found, using default`);
+      emailSubject = `Facture - Commande ${orderNumber}`;
+      htmlBody = buildDefaultEmailHtml(order, items, orderNumber, orderDate);
+    }
+  } else {
+    emailSubject = `Facture - Commande ${orderNumber}`;
+    htmlBody = buildDefaultEmailHtml(order, items, orderNumber, orderDate);
+  }
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -505,13 +655,13 @@ async function handleSendEmailInvoice(
       },
       body: JSON.stringify({
         user_id: config.user_id,
-        to: order.client_email,
+        to: clientEmail,
         client_name: order.client_name,
         date: "",
         time: "",
         duration_minutes: 0,
         motif: "",
-        custom_subject: `Facture - Commande ${orderNumber}`,
+        custom_subject: emailSubject,
         custom_body: htmlBody,
       }),
     });
@@ -522,7 +672,7 @@ async function handleSendEmailInvoice(
       return "Erreur lors de l'envoi de l'email. Veuillez reessayer.";
     }
 
-    return `Facture email envoyee avec succes a ${order.client_email}.`;
+    return `Facture email envoyee avec succes a ${clientEmail}.`;
   } catch (err) {
     console.log(`[OrderWebhook] Email error: ${(err as Error).message}`);
     return "Erreur technique lors de l'envoi de l'email.";
@@ -533,10 +683,34 @@ async function handleSendEmailInvoice(
 async function handleTransferCall(
   supabase: ReturnType<typeof createClient>,
   callSid: string,
-  phoneNumber: string
+  phoneNumber: string,
+  agentId: string
 ): Promise<string> {
-  if (!callSid || !phoneNumber) {
-    return "Informations manquantes pour le transfert. Il faut le call_sid et le numero de telephone.";
+  if (!phoneNumber) {
+    return "Informations manquantes pour le transfert. Il faut le numero de telephone.";
+  }
+
+  // Resolve call_sid — fallback to DB lookup if template variable was not resolved
+  let resolvedCallSid = callSid;
+  if (!resolvedCallSid || resolvedCallSid.includes("{{") || !resolvedCallSid.startsWith("CA")) {
+    console.log(`[OrderTransfer] Invalid call_sid "${callSid}", looking up from DB`);
+    const { data: activeConv } = await supabase
+      .from("conversations")
+      .select("twilio_call_sid")
+      .eq("agent_id", agentId)
+      .in("status", ["active", "ended"])
+      .not("twilio_call_sid", "is", null)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (activeConv?.twilio_call_sid) {
+      resolvedCallSid = activeConv.twilio_call_sid;
+      console.log(`[OrderTransfer] Resolved call_sid from DB: ${resolvedCallSid}`);
+    } else {
+      console.log(`[OrderTransfer] No active conversation with twilio_call_sid found`);
+      return "Impossible de determiner l'identifiant de l'appel pour le transfert.";
+    }
   }
 
   const twilioSid = Deno.env.get("TWILIO_ACCOUNT_SID");
@@ -547,14 +721,14 @@ async function handleTransferCall(
     return "Erreur: les identifiants Twilio ne sont pas configures.";
   }
 
-  console.log(`[OrderTransfer] Redirecting call ${callSid} to ${phoneNumber}`);
+  console.log(`[OrderTransfer] Redirecting call ${resolvedCallSid} to ${phoneNumber}`);
 
   try {
     const twiml = `<Response><Dial>${phoneNumber}</Dial></Response>`;
     const credentials = btoa(`${twilioSid}:${twilioToken}`);
 
     const res = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Calls/${callSid}.json`,
+      `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Calls/${resolvedCallSid}.json`,
       {
         method: "POST",
         headers: {
@@ -571,7 +745,7 @@ async function handleTransferCall(
       await supabase
         .from("conversations")
         .update({ transferred_to: phoneNumber, transfer_status: "failed" })
-        .eq("twilio_call_sid", callSid);
+        .eq("twilio_call_sid", resolvedCallSid);
       return `Erreur lors du transfert: ${res.status}. Veuillez reessayer.`;
     }
 
@@ -579,7 +753,7 @@ async function handleTransferCall(
     await supabase
       .from("conversations")
       .update({ transferred_to: phoneNumber, transfer_status: "success" })
-      .eq("twilio_call_sid", callSid);
+      .eq("twilio_call_sid", resolvedCallSid);
 
     return `Le transfert vers ${phoneNumber} est en cours. L'appelant va etre mis en relation avec un conseiller.`;
   } catch (err) {
@@ -587,7 +761,7 @@ async function handleTransferCall(
     await supabase
       .from("conversations")
       .update({ transferred_to: phoneNumber, transfer_status: "failed" })
-      .eq("twilio_call_sid", callSid);
+      .eq("twilio_call_sid", resolvedCallSid);
     return "Erreur technique lors du transfert. Veuillez reessayer.";
   }
 }
@@ -650,7 +824,7 @@ Deno.serve(async (req) => {
         result = await handleSendEmailInvoice(supabase, config as OrderConfig, body.order_number);
         break;
       case "transfer_call":
-        result = await handleTransferCall(supabase, body.call_sid, body.phone_number);
+        result = await handleTransferCall(supabase, body.call_sid, body.phone_number, config.agent_id);
         break;
       default:
         result = `Action inconnue: ${action}`;

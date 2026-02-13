@@ -66,6 +66,9 @@ export default function CampaignDetailPage() {
   const [loading, setLoading] = useState(true);
   const [launching, setLaunching] = useState(false);
 
+  // Launch confirmation modal
+  const [showLaunchModal, setShowLaunchModal] = useState(false);
+
   // Add contacts modal
   const [showAddModal, setShowAddModal] = useState(false);
   const [availableContacts, setAvailableContacts] = useState<Contact[]>([]);
@@ -180,7 +183,7 @@ export default function CampaignDetailPage() {
     setAddingContacts(false);
   }
 
-  async function handleLaunch() {
+  function handleLaunch() {
     if (!campaign?.agent_id) {
       toast.error("Associez un agent a cette campagne d'abord");
       return;
@@ -190,8 +193,11 @@ export default function CampaignDetailPage() {
       toast.error("Aucun contact en attente a appeler");
       return;
     }
-    if (!confirm(`Lancer la campagne ? ${pendingCount} contact(s) seront appele(s).`)) return;
+    setShowLaunchModal(true);
+  }
 
+  async function confirmLaunch() {
+    setShowLaunchModal(false);
     setLaunching(true);
     try {
       const supabase = createClient();
@@ -376,6 +382,43 @@ export default function CampaignDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Launch confirmation modal */}
+      <AnimatePresence>
+        {showLaunchModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowLaunchModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                  <Play size={18} className="text-blue-600" />
+                </div>
+                <h2 className="text-lg font-bold m-0 text-slate-900">Lancer la campagne</h2>
+              </div>
+              <p className="text-sm text-slate-600 mb-6">
+                <strong>{contacts.filter((c) => c.status === "pending").length} contact(s)</strong> seront appele(s). Cette action lancera les appels immediatement.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setShowLaunchModal(false)} className="btn-secondary">Annuler</button>
+                <button onClick={confirmLaunch} className="btn-primary flex items-center gap-1">
+                  <Play size={14} /> Lancer
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Add contacts modal */}
       <AnimatePresence>

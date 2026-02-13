@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, RefreshCw, Bot, Calendar, Headphones, ShoppingCart, ChevronDown } from "lucide-react";
+import { Plus, RefreshCw, Bot, Calendar, Headphones, ShoppingCart, Briefcase, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import AgentList from "@/components/agents/AgentList";
 import CreateAgentModal from "@/components/agents/CreateAgentModal";
 import CreateAppointmentAgentModal from "@/components/agents/CreateAppointmentAgentModal";
 import CreateSupportAgentModal from "@/components/agents/CreateSupportAgentModal";
 import CreateOrderAgentModal from "@/components/agents/CreateOrderAgentModal";
+import CreateCommercialAgentModal from "@/components/agents/CreateCommercialAgentModal";
 import { listAgents, deleteAgent } from "@/lib/elevenlabs";
 import type { Agent, CreateAgentFormData } from "@/types/elevenlabs";
 
@@ -18,11 +19,13 @@ export default function AgentsPage() {
   const [showRdvModal, setShowRdvModal] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [showCommercialModal, setShowCommercialModal] = useState(false);
   const [showTypeMenu, setShowTypeMenu] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [editingRdvAgent, setEditingRdvAgent] = useState<Agent | null>(null);
   const [editingSupportAgent, setEditingSupportAgent] = useState<Agent | null>(null);
   const [editingOrderAgent, setEditingOrderAgent] = useState<Agent | null>(null);
+  const [editingCommercialAgent, setEditingCommercialAgent] = useState<Agent | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const fetchAgents = useCallback(async () => {
@@ -67,13 +70,16 @@ export default function AgentsPage() {
     setShowRdvModal(false);
     setShowSupportModal(false);
     setShowOrderModal(false);
+    setShowCommercialModal(false);
     toast.success("Agent cree avec succes !");
     fetchAgents();
   };
 
   const handleEdit = (agent: Agent) => {
     const type = agent.agent_type || "standard";
-    if (type === "order") {
+    if (type === "commercial") {
+      setEditingCommercialAgent(agent);
+    } else if (type === "order") {
       setEditingOrderAgent(agent);
     } else if (type === "support") {
       setEditingSupportAgent(agent);
@@ -89,6 +95,7 @@ export default function AgentsPage() {
     setEditingRdvAgent(null);
     setEditingSupportAgent(null);
     setEditingOrderAgent(null);
+    setEditingCommercialAgent(null);
     toast.success("Agent mis a jour !");
     fetchAgents();
   };
@@ -189,6 +196,19 @@ export default function AgentsPage() {
                     <div className="text-xs text-slate-500 mt-0.5">Agent specialise pour la prise de commande et facturation</div>
                   </div>
                 </button>
+                <div className="border-t border-slate-100" />
+                <button
+                  onClick={() => { setShowTypeMenu(false); setShowCommercialModal(true); }}
+                  className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex items-start gap-3"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
+                    <Briefcase size={18} className="text-slate-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">Agent Commercial</div>
+                    <div className="text-xs text-slate-500 mt-0.5">Agent specialise pour la prospection commerciale</div>
+                  </div>
+                </button>
               </div>
             )}
           </div>
@@ -268,6 +288,23 @@ export default function AgentsPage() {
           editMode
           agentId={editingOrderAgent.agent_id}
           initialData={getEditData(editingOrderAgent)}
+        />
+      )}
+
+      {showCommercialModal && (
+        <CreateCommercialAgentModal
+          onClose={() => setShowCommercialModal(false)}
+          onCreated={handleCreated}
+        />
+      )}
+
+      {editingCommercialAgent && (
+        <CreateCommercialAgentModal
+          onClose={() => setEditingCommercialAgent(null)}
+          onCreated={handleEditDone}
+          editMode
+          agentId={editingCommercialAgent.agent_id}
+          initialData={getEditData(editingCommercialAgent)}
         />
       )}
     </div>

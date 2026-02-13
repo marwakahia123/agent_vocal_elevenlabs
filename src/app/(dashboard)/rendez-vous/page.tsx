@@ -109,13 +109,29 @@ export default function RendezVousPage() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    // Calculate visible date range based on current view
+    let rangeStart: Date;
+    let rangeEnd: Date;
+    if (viewMode === "month") {
+      const monthStart = startOfMonth(currentDate);
+      const monthEnd = endOfMonth(currentDate);
+      rangeStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+      rangeEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    } else {
+      rangeStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+      rangeEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+    }
+
     const { data } = await supabase
       .from("appointments")
       .select("*, contact:contacts(first_name, last_name)")
       .eq("user_id", user.id)
+      .gte("start_at", rangeStart.toISOString())
+      .lte("start_at", rangeEnd.toISOString())
       .order("start_at", { ascending: true });
     setAppointments((data as Appointment[]) || []);
-  }, []);
+  }, [currentDate, viewMode]);
 
   const fetchExternalEvents = useCallback(async () => {
     if (!integration) return;
@@ -371,12 +387,12 @@ export default function RendezVousPage() {
 
       {/* Calendar navigation */}
       <div className="card px-6 py-4 mb-4">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <button onClick={goPrev} className="btn-ghost p-1.5">
               <ChevronLeft size={20} />
             </button>
-            <h2 className="text-lg font-semibold text-slate-900 m-0 min-w-[200px] text-center">
+            <h2 className="text-lg font-semibold text-slate-900 m-0 min-w-0 text-center">
               {viewMode === "month"
                 ? format(currentDate, "MMMM yyyy", { locale: fr }).replace(/^./, (c) => c.toUpperCase())
                 : `Semaine du ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), "d MMM", { locale: fr })} au ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), "d MMM yyyy", { locale: fr })}`}

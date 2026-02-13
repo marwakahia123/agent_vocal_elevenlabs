@@ -18,6 +18,27 @@ interface SupportConfig {
   default_priority: string;
   default_category: string;
   webhook_secret: string;
+  sms_template_id: string | null;
+  email_template_id: string | null;
+}
+
+function replaceTemplateVars(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '');
+}
+
+function wrapInEmailLayout(headerColor: string, title: string, bodyHtml: string): string {
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #1e293b;">
+  <div style="background: ${headerColor}; color: white; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+    <h1 style="margin: 0; font-size: 22px;">${title}</h1>
+  </div>
+  <div style="border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+    ${bodyHtml}
+    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+    <p style="color: #94a3b8; font-size: 12px; text-align: center;">Ce message a ete envoye automatiquement par HallCall.</p>
+  </div>
+</body></html>`.trim();
 }
 
 // ========== Handler: Search Client ==========
@@ -319,15 +340,67 @@ async function handleSendSms(
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Find contact for logging
+    // Find contact for logging and template vars
     const normalizedPhone = phoneNumber.replace(/\s/g, "");
     const { data: contact } = await supabase
       .from("contacts")
-      .select("id")
+      .select("id, first_name, last_name, phone, email")
       .eq("user_id", config.user_id)
       .eq("phone", normalizedPhone)
       .limit(1)
       .maybeSingle();
+
+    // Determine SMS content: use template if configured, otherwise use message directly
+    let smsContent = message;
+
+    if (config.sms_template_id) {
+      const { data: template } = await supabase
+        .from("notification_templates")
+        .select("content")
+        .eq("id", config.sms_template_id)
+        .maybeSingle();
+
+      if (template?.content) {
+        const clientName = contact
+          ? `${contact.first_name || ""} ${contact.last_name || ""}`.trim()
+          : "";
+
+        // Look up most recent ticket for this contact
+        let ticketNumber = "";
+        if (contact?.id) {
+          const { data: recentTicket } = await supabase
+            .from("support_tickets")
+            .select("case_number")
+            .eq("user_id", config.user_id)
+            .eq("contact_id", contact.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (recentTicket) ticketNumber = recentTicket.case_number;
+        }
+        if (!ticketNumber) {
+          const match = message.match(/SAV-\d{8}-\d{5}/);
+          if (match) ticketNumber = match[0];
+        }
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString("fr-FR", {
+          weekday: "long", year: "numeric", month: "long", day: "numeric",
+        });
+
+        const vars: Record<string, string> = {
+          client_name: clientName,
+          client_phone: normalizedPhone,
+          client_email: contact?.email || "",
+          ticket_number: ticketNumber,
+          date: dateStr,
+          subject: "",
+          message: message,
+        };
+        smsContent = replaceTemplateVars(template.content, vars);
+        console.log(`[SupportWebhook] SMS using template ${config.sms_template_id}`);
+      }
+    }
 
     const res = await fetch(`${supabaseUrl}/functions/v1/send-sms`, {
       method: "POST",
@@ -337,7 +410,7 @@ async function handleSendSms(
       },
       body: JSON.stringify({
         to: normalizedPhone,
-        content: message,
+        content: smsContent,
         user_id: config.user_id,
         contact_id: contact?.id || null,
       }),
@@ -358,6 +431,7 @@ async function handleSendSms(
 
 // ========== Handler: Send Email ==========
 async function handleSendEmail(
+  supabase: ReturnType<typeof createClient>,
   config: SupportConfig,
   email: string,
   subject: string,
@@ -373,6 +447,106 @@ async function handleSendEmail(
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+    // Determine email subject and body: use template if configured, otherwise use params directly
+    let customSubject = subject;
+    let customBody = body;
+
+    if (config.email_template_id) {
+      const { data: template } = await supabase
+        .from("notification_templates")
+        .select("subject, content, header_color")
+        .eq("id", config.email_template_id)
+        .maybeSingle();
+
+      if (template) {
+        // Try to find the contact by email to enrich template vars
+        let contactData: Record<string, unknown> | null = null;
+        const { data: contactByEmail } = await supabase
+          .from("contacts")
+          .select("id, first_name, last_name, phone, email")
+          .eq("user_id", config.user_id)
+          .ilike("email", email)
+          .limit(1)
+          .maybeSingle();
+        contactData = contactByEmail;
+
+        // Fallback: if contact not found by email, try via ticket's contact_id
+        if (!contactData) {
+          const bodyMatch = body.match(/SAV-\d{8}-\d{5}/);
+          if (bodyMatch) {
+            const { data: ticket } = await supabase
+              .from("support_tickets")
+              .select("contact_id")
+              .eq("user_id", config.user_id)
+              .eq("case_number", bodyMatch[0])
+              .maybeSingle();
+            if (ticket?.contact_id) {
+              const { data: fallbackContact } = await supabase
+                .from("contacts")
+                .select("id, first_name, last_name, phone, email")
+                .eq("id", ticket.contact_id)
+                .maybeSingle();
+              if (fallbackContact) contactData = fallbackContact;
+            }
+          }
+        }
+
+        const clientName = contactData
+          ? `${contactData.first_name || ""} ${contactData.last_name || ""}`.trim()
+          : "";
+
+        // Look up most recent ticket for this contact to get case_number
+        let ticketNumber = "";
+        if (contactData?.id) {
+          const { data: recentTicket } = await supabase
+            .from("support_tickets")
+            .select("case_number")
+            .eq("user_id", config.user_id)
+            .eq("contact_id", contactData.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (recentTicket) ticketNumber = recentTicket.case_number;
+        }
+        // Fallback: extract SAV-XXXXXXXX-XXXXX from body text
+        if (!ticketNumber) {
+          const match = body.match(/SAV-\d{8}-\d{5}/);
+          if (match) ticketNumber = match[0];
+        }
+
+        // Current date formatted in French
+        const now = new Date();
+        const dateStr = now.toLocaleDateString("fr-FR", {
+          weekday: "long", year: "numeric", month: "long", day: "numeric",
+        });
+
+        const vars: Record<string, string> = {
+          client_name: clientName,
+          client_phone: (contactData?.phone as string) || "",
+          client_email: email,
+          ticket_number: ticketNumber,
+          date: dateStr,
+          subject: subject,
+          message: body,
+        };
+
+        if (template.subject) {
+          customSubject = replaceTemplateVars(template.subject, vars);
+        }
+        if (template.content) {
+          const renderedContent = replaceTemplateVars(template.content, vars)
+            .replace(/\n/g, "<br>");
+          const tplHeaderColor = template.header_color || "#0f172a";
+          customBody = wrapInEmailLayout(
+            tplHeaderColor,
+            customSubject || subject,
+            renderedContent
+          );
+        }
+        console.log(`[SupportWebhook] Email using template ${config.email_template_id} (header: ${template.header_color || "#0f172a"})`);
+      }
+    }
+
     const res = await fetch(`${supabaseUrl}/functions/v1/send-rdv-email`, {
       method: "POST",
       headers: {
@@ -386,9 +560,9 @@ async function handleSendEmail(
         date: "",
         time: "",
         duration_minutes: 0,
-        motif: subject,
-        custom_subject: subject,
-        custom_body: body,
+        motif: customSubject,
+        custom_subject: customSubject,
+        custom_body: customBody,
       }),
     });
 
@@ -487,10 +661,34 @@ async function handleScheduleMeeting(
 async function handleTransferCall(
   supabase: ReturnType<typeof createClient>,
   callSid: string,
-  phoneNumber: string
+  phoneNumber: string,
+  agentId: string
 ): Promise<string> {
-  if (!callSid || !phoneNumber) {
-    return "Informations manquantes pour le transfert. Il faut le call_sid et le numero de telephone.";
+  if (!phoneNumber) {
+    return "Informations manquantes pour le transfert. Il faut le numero de telephone.";
+  }
+
+  // Resolve call_sid — fallback to DB lookup if template variable was not resolved
+  let resolvedCallSid = callSid;
+  if (!resolvedCallSid || resolvedCallSid.includes("{{") || !resolvedCallSid.startsWith("CA")) {
+    console.log(`[SupportTransfer] Invalid call_sid "${callSid}", looking up from DB`);
+    const { data: activeConv } = await supabase
+      .from("conversations")
+      .select("twilio_call_sid")
+      .eq("agent_id", agentId)
+      .in("status", ["active", "ended"])
+      .not("twilio_call_sid", "is", null)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (activeConv?.twilio_call_sid) {
+      resolvedCallSid = activeConv.twilio_call_sid;
+      console.log(`[SupportTransfer] Resolved call_sid from DB: ${resolvedCallSid}`);
+    } else {
+      console.log(`[SupportTransfer] No active conversation with twilio_call_sid found`);
+      return "Impossible de determiner l'identifiant de l'appel pour le transfert.";
+    }
   }
 
   const twilioSid = Deno.env.get("TWILIO_ACCOUNT_SID");
@@ -501,14 +699,14 @@ async function handleTransferCall(
     return "Erreur: les identifiants Twilio ne sont pas configures.";
   }
 
-  console.log(`[SupportTransfer] Redirecting call ${callSid} to ${phoneNumber}`);
+  console.log(`[SupportTransfer] Redirecting call ${resolvedCallSid} to ${phoneNumber}`);
 
   try {
     const twiml = `<Response><Dial>${phoneNumber}</Dial></Response>`;
     const credentials = btoa(`${twilioSid}:${twilioToken}`);
 
     const res = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Calls/${callSid}.json`,
+      `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Calls/${resolvedCallSid}.json`,
       {
         method: "POST",
         headers: {
@@ -525,7 +723,7 @@ async function handleTransferCall(
       await supabase
         .from("conversations")
         .update({ transferred_to: phoneNumber, transfer_status: "failed" })
-        .eq("twilio_call_sid", callSid);
+        .eq("twilio_call_sid", resolvedCallSid);
       return `Erreur lors du transfert: ${res.status}. Veuillez reessayer.`;
     }
 
@@ -533,7 +731,7 @@ async function handleTransferCall(
     await supabase
       .from("conversations")
       .update({ transferred_to: phoneNumber, transfer_status: "success" })
-      .eq("twilio_call_sid", callSid);
+      .eq("twilio_call_sid", resolvedCallSid);
 
     return `Le transfert vers ${phoneNumber} est en cours. L'appelant va etre mis en relation avec un conseiller.`;
   } catch (err) {
@@ -541,7 +739,7 @@ async function handleTransferCall(
     await supabase
       .from("conversations")
       .update({ transferred_to: phoneNumber, transfer_status: "failed" })
-      .eq("twilio_call_sid", callSid);
+      .eq("twilio_call_sid", resolvedCallSid);
     return "Erreur technique lors du transfert. Veuillez reessayer.";
   }
 }
@@ -607,13 +805,13 @@ Deno.serve(async (req) => {
         result = await handleSendSms(supabase, config as SupportConfig, body.phone_number, body.message);
         break;
       case "send_email":
-        result = await handleSendEmail(config as SupportConfig, body.email, body.subject, body.body);
+        result = await handleSendEmail(supabase, config as SupportConfig, body.email, body.subject, body.body);
         break;
       case "schedule_meeting":
         result = await handleScheduleMeeting(supabase, config as SupportConfig, body);
         break;
       case "transfer_call":
-        result = await handleTransferCall(supabase, body.call_sid, body.phone_number);
+        result = await handleTransferCall(supabase, body.call_sid, body.phone_number, config.agent_id);
         break;
       default:
         result = `Action inconnue: ${action}`;

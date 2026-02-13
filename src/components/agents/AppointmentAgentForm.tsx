@@ -11,7 +11,7 @@ import { SUPPORTED_LANGUAGES, LLM_MODELS, DEFAULT_FORM_VALUES } from "@/lib/cons
 import { listVoices, createRdvAgent, updateRdvAgent, uploadKnowledgeBase } from "@/lib/elevenlabs";
 import { createClient } from "@/lib/supabase/client";
 import type { Voice, CreateAgentFormData } from "@/types/elevenlabs";
-import type { KnowledgeBaseItem } from "@/types/database";
+import type { KnowledgeBaseItem, NotificationTemplate } from "@/types/database";
 
 interface Props {
   onCreated: () => void;
@@ -128,6 +128,10 @@ export default function AppointmentAgentForm({ onCreated, onCancel, editMode, ag
   // Notifications
   const [smsEnabled, setSmsEnabled] = useState(false);
   const [emailEnabled, setEmailEnabled] = useState(false);
+  const [smsTemplateId, setSmsTemplateId] = useState<string>("");
+  const [emailTemplateId, setEmailTemplateId] = useState<string>("");
+  const [smsTemplates, setSmsTemplates] = useState<NotificationTemplate[]>([]);
+  const [emailTemplates, setEmailTemplates] = useState<NotificationTemplate[]>([]);
 
   // Submit
   const [submitting, setSubmitting] = useState(false);
@@ -185,6 +189,8 @@ export default function AppointmentAgentForm({ onCreated, onCancel, editMode, ag
           setDefaultTransferNumber(config.default_transfer_number || "");
           setSmsEnabled(config.sms_notification_enabled ?? false);
           setEmailEnabled(config.email_notification_enabled ?? false);
+          setSmsTemplateId(config.sms_template_id || "");
+          setEmailTemplateId(config.email_template_id || "");
 
           // Load transfer conditions
           const conditions = (config.transfer_conditions as TransferConditionForm[]) || [];
@@ -214,6 +220,25 @@ export default function AppointmentAgentForm({ onCreated, onCancel, editMode, ag
       }
     })();
   }, [editMode, agentId]);
+
+  // Load notification templates for RDV agent
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("notification_templates")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("agent_type", "rdv")
+        .order("name");
+      if (data) {
+        setSmsTemplates((data as NotificationTemplate[]).filter((t) => t.channel === "sms"));
+        setEmailTemplates((data as NotificationTemplate[]).filter((t) => t.channel === "email"));
+      }
+    })();
+  }, []);
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -349,6 +374,8 @@ export default function AppointmentAgentForm({ onCreated, onCancel, editMode, ag
         default_transfer_number: defaultTransferNumber,
         sms_notification_enabled: smsEnabled,
         email_notification_enabled: emailEnabled,
+        sms_template_id: smsTemplateId || null,
+        email_template_id: emailTemplateId || null,
       };
 
       const formPayload = {
@@ -799,11 +826,23 @@ export default function AppointmentAgentForm({ onCreated, onCancel, editMode, ag
         <p className="text-sm text-slate-500 mb-4">Envoyer automatiquement un SMS de confirmation apres chaque rendez-vous pris</p>
 
         {smsEnabled && (
-          <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
-            <Info size={18} className="shrink-0 mt-0.5" />
-            <p className="m-0">
-              Les SMS seront envoyes via Twilio en utilisant le template configure dans la table <code className="bg-blue-100 px-1 py-0.5 rounded text-xs">sms_templates</code>. Assurez-vous que votre compte Twilio est configure et que vous avez suffisamment de credits.
-            </p>
+          <div className="space-y-3">
+            <div>
+              <label className="label">Template SMS</label>
+              <select className="input-field" value={smsTemplateId} onChange={(e) => setSmsTemplateId(e.target.value)}>
+                <option value="">Template par defaut</option>
+                {smsTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-400 mt-1">Gerez vos templates dans Notifications &gt; Templates</p>
+            </div>
+            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
+              <Info size={18} className="shrink-0 mt-0.5" />
+              <p className="m-0">
+                Les SMS seront envoyes via Twilio. Assurez-vous que votre compte Twilio est configure et que vous avez suffisamment de credits.
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -823,11 +862,23 @@ export default function AppointmentAgentForm({ onCreated, onCancel, editMode, ag
         <p className="text-sm text-slate-500 mb-4">Envoyer un email de confirmation au client apres la prise de rendez-vous</p>
 
         {emailEnabled && (
-          <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
-            <Info size={18} className="shrink-0 mt-0.5" />
-            <p className="m-0">
-              L&apos;email sera envoye via votre integration Google/Microsoft configuree dans les parametres, ou via Resend en fallback. Le client doit fournir son adresse email pendant l&apos;appel.
-            </p>
+          <div className="space-y-3">
+            <div>
+              <label className="label">Template Email</label>
+              <select className="input-field" value={emailTemplateId} onChange={(e) => setEmailTemplateId(e.target.value)}>
+                <option value="">Template par defaut</option>
+                {emailTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-400 mt-1">Gerez vos templates dans Notifications &gt; Templates</p>
+            </div>
+            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
+              <Info size={18} className="shrink-0 mt-0.5" />
+              <p className="m-0">
+                L&apos;email sera envoye via votre integration Google/Microsoft configuree dans les parametres, ou via Resend en fallback.
+              </p>
+            </div>
           </div>
         )}
       </div>

@@ -7,6 +7,7 @@ import {
   RefreshCw,
   X,
   Trash2,
+  AlertTriangle,
   Copy,
   CheckCircle,
   XCircle,
@@ -202,17 +203,20 @@ export default function WidgetsPage() {
     fetchWidgets();
   }, [fetchWidgets]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer ce widget ?")) return;
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("widgets").delete().eq("id", id);
+      const { error } = await supabase.from("widgets").delete().eq("id", deleteTarget);
       if (error) throw error;
       toast.success("Widget supprime");
       fetchWidgets();
     } catch {
       toast.error("Erreur lors de la suppression");
     }
+    setDeleteTarget(null);
   };
 
   const toggleWidget = async (widget: WidgetWithAgent) => {
@@ -326,7 +330,7 @@ export default function WidgetsPage() {
                   {widget.is_active ? <XCircle size={14} /> : <CheckCircle size={14} />}
                   {widget.is_active ? "Desactiver" : "Activer"}
                 </button>
-                <button className="btn-ghost text-[0.8125rem] text-red-500 flex items-center gap-1" onClick={() => handleDelete(widget.id)}>
+                <button className="btn-ghost text-[0.8125rem] text-red-500 flex items-center gap-1" onClick={() => setDeleteTarget(widget.id)}>
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -334,6 +338,43 @@ export default function WidgetsPage() {
           ))}
         </div>
       )}
+
+      {/* Delete confirmation modal */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setDeleteTarget(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                  <AlertTriangle size={18} className="text-red-600" />
+                </div>
+                <h2 className="text-lg font-bold m-0 text-slate-900">Supprimer le widget</h2>
+              </div>
+              <p className="text-sm text-slate-600 mb-6">
+                Cette action est irreversible. Le widget sera definitivement supprime.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setDeleteTarget(null)} className="btn-secondary">Annuler</button>
+                <button onClick={confirmDelete} className="btn-primary flex items-center gap-1" style={{ backgroundColor: "#DC2626" }}>
+                  <Trash2 size={14} /> Supprimer
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Modal */}
       <AnimatePresence>

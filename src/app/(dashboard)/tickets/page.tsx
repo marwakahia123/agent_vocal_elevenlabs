@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Ticket, AlertCircle, X, Send, Trash2, User, Phone as PhoneIcon } from "lucide-react";
+import { Plus, Ticket, AlertCircle, AlertTriangle, X, Send, Trash2, User, Phone as PhoneIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { AnimatePresence, motion } from "framer-motion";
@@ -77,17 +77,20 @@ export default function TicketsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Supprimer ce ticket ?")) return;
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
     const supabase = createClient();
-    const { error } = await supabase.from("support_tickets").delete().eq("id", id);
+    const { error } = await supabase.from("support_tickets").delete().eq("id", deleteTarget);
     if (error) {
       toast.error("Erreur lors de la suppression");
     } else {
       toast.success("Ticket supprime");
-      if (selectedTicket?.id === id) setSelectedTicket(null);
+      if (selectedTicket?.id === deleteTarget) setSelectedTicket(null);
       fetchTickets();
     }
+    setDeleteTarget(null);
   }
 
   async function openTicketDetail(ticket: SupportTicket) {
@@ -156,7 +159,7 @@ export default function TicketsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
           <h1 className="text-xl font-semibold text-slate-900 m-0">Tickets Support</h1>
           <p className="text-sm text-slate-500 mt-1">Gerez les demandes de support</p>
@@ -167,7 +170,7 @@ export default function TicketsPage() {
       </div>
 
       {/* Filters */}
-      <div className="tabs mb-4">
+      <div className="tabs mb-4 overflow-x-auto">
         {[
           { key: "all", label: "Tous" },
           { key: "open", label: "Ouverts" },
@@ -198,12 +201,12 @@ export default function TicketsPage() {
             <thead>
               <tr>
                 <th>#</th>
-                <th>Client</th>
+                <th className="hidden md:table-cell">Client</th>
                 <th>Sujet</th>
-                <th>Resume</th>
+                <th className="hidden lg:table-cell">Resume</th>
                 <th>Statut</th>
-                <th>Priorite</th>
-                <th>Cree</th>
+                <th className="hidden md:table-cell">Priorite</th>
+                <th className="hidden md:table-cell">Cree</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -215,7 +218,7 @@ export default function TicketsPage() {
                 return (
                   <tr key={ticket.id} className="cursor-pointer" onClick={() => openTicketDetail(ticket)}>
                     <td className="font-medium text-[0.8125rem]">{ticket.case_number || `#${ticket.ticket_number}`}</td>
-                    <td>
+                    <td className="hidden md:table-cell">
                       {contact ? (
                         <div>
                           <div className="font-medium text-slate-900 text-[0.8125rem]">{contact.first_name} {contact.last_name}</div>
@@ -231,16 +234,16 @@ export default function TicketsPage() {
                         <span className="font-medium text-slate-900">{ticket.subject}</span>
                       </div>
                     </td>
-                    <td className="text-[0.8125rem] text-slate-500 max-w-[200px]">
+                    <td className="hidden lg:table-cell text-[0.8125rem] text-slate-500 max-w-[200px]">
                       <span className="block truncate">{ticket.description || "—"}</span>
                     </td>
                     <td><span className="badge" style={{ backgroundColor: s.bg, color: s.color }}>{s.label}</span></td>
-                    <td><span className="badge" style={{ backgroundColor: p.bg, color: p.color }}>{p.label}</span></td>
-                    <td className="text-[0.8125rem] text-slate-500">{formatRelative(ticket.created_at)}</td>
+                    <td className="hidden md:table-cell"><span className="badge" style={{ backgroundColor: p.bg, color: p.color }}>{p.label}</span></td>
+                    <td className="hidden md:table-cell text-[0.8125rem] text-slate-500">{formatRelative(ticket.created_at)}</td>
                     <td>
                       <button
                         className="btn-ghost p-1 text-red-500"
-                        onClick={(e) => { e.stopPropagation(); handleDelete(ticket.id); }}
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(ticket.id); }}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -424,6 +427,43 @@ export default function TicketsPage() {
                   <Send size={16} />
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete confirmation modal */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setDeleteTarget(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                  <AlertTriangle size={18} className="text-red-600" />
+                </div>
+                <h2 className="text-lg font-bold m-0 text-slate-900">Supprimer le ticket</h2>
+              </div>
+              <p className="text-sm text-slate-600 mb-6">
+                Cette action est irreversible. Le ticket sera definitivement supprime.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setDeleteTarget(null)} className="btn-secondary">Annuler</button>
+                <button onClick={confirmDelete} className="btn-primary flex items-center gap-1" style={{ backgroundColor: "#DC2626" }}>
+                  <Trash2 size={14} /> Supprimer
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

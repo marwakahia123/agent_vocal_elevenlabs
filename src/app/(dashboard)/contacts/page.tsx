@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Trash2,
   Edit2,
+  AlertTriangle,
   FileSpreadsheet,
   Phone,
   Loader2,
@@ -643,17 +644,20 @@ export default function ContactsPage() {
     setPage(1);
   }, [search]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer ce contact ?")) return;
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
       const supabase = createClient();
-      const { error } = await supabase.from("contacts").delete().eq("id", id);
+      const { error } = await supabase.from("contacts").delete().eq("id", deleteTarget);
       if (error) throw error;
       toast.success("Contact supprime");
       fetchContacts();
     } catch {
       toast.error("Erreur lors de la suppression");
     }
+    setDeleteTarget(null);
   };
 
   return (
@@ -714,11 +718,11 @@ export default function ContactsPage() {
                 <tr>
                   <th>Nom</th>
                   <th>Telephone</th>
-                  <th>Email</th>
-                  <th>Entreprise</th>
-                  <th>Ville</th>
-                  <th>Tags</th>
-                  <th>Source</th>
+                  <th className="hidden md:table-cell">Email</th>
+                  <th className="hidden lg:table-cell">Entreprise</th>
+                  <th className="hidden lg:table-cell">Ville</th>
+                  <th className="hidden md:table-cell">Tags</th>
+                  <th className="hidden md:table-cell">Source</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -729,10 +733,10 @@ export default function ContactsPage() {
                       {contact.first_name} {contact.last_name}
                     </td>
                     <td>{contact.phone || "—"}</td>
-                    <td>{contact.email || "—"}</td>
-                    <td>{contact.company || "—"}</td>
-                    <td>{contact.city || "—"}</td>
-                    <td>
+                    <td className="hidden md:table-cell">{contact.email || "—"}</td>
+                    <td className="hidden lg:table-cell">{contact.company || "—"}</td>
+                    <td className="hidden lg:table-cell">{contact.city || "—"}</td>
+                    <td className="hidden md:table-cell">
                       <div className="flex gap-1 flex-wrap">
                         {contact.tags?.length > 0
                           ? contact.tags.map((tag) => (
@@ -741,7 +745,7 @@ export default function ContactsPage() {
                           : "—"}
                       </div>
                     </td>
-                    <td>
+                    <td className="hidden md:table-cell">
                       <span className={`badge ${SOURCE_BADGE[contact.source] || "badge-neutral"}`}>
                         {SOURCE_LABELS[contact.source] || contact.source}
                       </span>
@@ -756,7 +760,7 @@ export default function ContactsPage() {
                         <button className="btn-ghost p-1 text-slate-500" title="Modifier" onClick={() => setEditingContact(contact)}>
                           <Edit2 size={14} />
                         </button>
-                        <button className="btn-ghost p-1 text-red-500" title="Supprimer" onClick={() => handleDelete(contact.id)}>
+                        <button className="btn-ghost p-1 text-red-500" title="Supprimer" onClick={() => setDeleteTarget(contact.id)}>
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -806,6 +810,43 @@ export default function ContactsPage() {
           )}
         </>
       )}
+
+      {/* Delete confirmation modal */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setDeleteTarget(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                  <AlertTriangle size={18} className="text-red-600" />
+                </div>
+                <h2 className="text-lg font-bold m-0 text-slate-900">Supprimer le contact</h2>
+              </div>
+              <p className="text-sm text-slate-600 mb-6">
+                Cette action est irreversible. Le contact sera definitivement supprime.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setDeleteTarget(null)} className="btn-secondary">Annuler</button>
+                <button onClick={confirmDelete} className="btn-primary flex items-center gap-1" style={{ backgroundColor: "#DC2626" }}>
+                  <Trash2 size={14} /> Supprimer
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Modals */}
       <AnimatePresence>

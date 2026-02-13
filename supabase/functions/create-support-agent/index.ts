@@ -134,6 +134,9 @@ Tu disposes des outils suivants pour assister le client:
 - Reformule les problemes pour montrer que tu comprends
 - Donne des delais realistes
 - Rassure le client sur la prise en charge de son probleme
+- Pour les questions simples ou de conversation courante, reponds directement sans utiliser d'outil. N'utilise les outils que quand c'est vraiment necessaire (recherche de ticket, creation, etc.).
+- Garde tes reponses courtes et directes. Pas de longs monologues.
+- Pour lire un numero de telephone, convertis le format international (+33) en format local (0) et lis les chiffres par paires. Exemple: +33667979483 se lit "zero six, soixante-sept, quatre-vingt-dix-sept, quatre-vingt-quatorze, quatre-vingt-trois". Ne dis jamais "plus trente-trois".
 
 ${notificationsPrompt}
 
@@ -187,9 +190,9 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "rechercher_client",
         description: "Recherche un client dans la base de donnees par telephone, email ou nom. Utilise cet outil pour identifier le client au debut de l'appel.",
-        response_timeout_secs: 15,
-        disable_interruptions: true,
-        force_pre_tool_speech: true,
+        response_timeout_secs: 8,
+        disable_interruptions: false,
+        force_pre_tool_speech: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -208,9 +211,9 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "enregistrer_client",
         description: "Enregistre un nouveau client dans la base de donnees. Utilise cet outil quand le client n'existe pas apres une recherche.",
-        response_timeout_secs: 15,
-        disable_interruptions: true,
-        force_pre_tool_speech: true,
+        response_timeout_secs: 8,
+        disable_interruptions: false,
+        force_pre_tool_speech: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -233,9 +236,9 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "creer_ticket_sav",
         description: "Cree un ticket SAV pour le client. IMPORTANT: utilise cet outil UNIQUEMENT si ta base de connaissances n'a pas de solution au probleme du client. Tu DOIS evaluer toi-meme la priorite et la categorie en fonction de la conversation.",
-        response_timeout_secs: 15,
+        response_timeout_secs: 8,
         disable_interruptions: true,
-        force_pre_tool_speech: true,
+        force_pre_tool_speech: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -258,8 +261,8 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "modifier_statut_ticket",
         description: "Modifie le statut d'un ticket SAV existant. Statuts possibles: open, in_progress, waiting, resolved, closed.",
-        response_timeout_secs: 15,
-        disable_interruptions: true,
+        response_timeout_secs: 8,
+        disable_interruptions: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -279,8 +282,8 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "ajouter_note_ticket",
         description: "Ajoute une note ou un commentaire a un ticket SAV existant. Utile pour documenter les echanges avec le client.",
-        response_timeout_secs: 15,
-        disable_interruptions: true,
+        response_timeout_secs: 8,
+        disable_interruptions: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -300,8 +303,8 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "envoyer_sms",
         description: "Envoie un SMS au client. Utilise pour confirmer un ticket, un rendez-vous ou envoyer des instructions.",
-        response_timeout_secs: 15,
-        disable_interruptions: true,
+        response_timeout_secs: 8,
+        disable_interruptions: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -321,8 +324,8 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "envoyer_email",
         description: "Envoie un email au client. Utilise pour envoyer un recapitulatif, des instructions detaillees ou une confirmation.",
-        response_timeout_secs: 15,
-        disable_interruptions: true,
+        response_timeout_secs: 8,
+        disable_interruptions: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -343,9 +346,9 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "planifier_rdv",
         description: "Planifie un rendez-vous technique ou un rappel pour le client. Utilise quand une intervention sur site ou un rappel est necessaire.",
-        response_timeout_secs: 15,
+        response_timeout_secs: 10,
         disable_interruptions: true,
-        force_pre_tool_speech: true,
+        force_pre_tool_speech: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -385,7 +388,7 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "transferer_appel",
         description: "Transfere l'appel en cours vers un conseiller humain. Utilise quand le client demande un humain, quand le probleme est critique, ou apres 3 tentatives de resolution sans succes.",
-        response_timeout_secs: 20,
+        response_timeout_secs: 10,
         disable_interruptions: false,
         api_schema: {
           url: webhookUrl,
@@ -424,10 +427,14 @@ Deno.serve(async (req) => {
         },
         tts: {
           voice_id: body.voiceId,
-          model_id: "eleven_turbo_v2_5",
+          model_id: "eleven_flash_v2_5",
           stability: body.stability ?? 0.5,
           similarity_boost: body.similarityBoost ?? 0.8,
           speed: body.speed ?? 1.0,
+        },
+        turn: {
+          turn_eagerness: "eager",
+          turn_timeout: 1,
         },
         conversation: {
           max_duration_seconds: body.maxDurationSeconds ?? 600,
@@ -497,6 +504,8 @@ Deno.serve(async (req) => {
       sms_enabled: supportConfig.sms_enabled ?? false,
       email_enabled: supportConfig.email_enabled ?? false,
       webhook_secret: webhookSecret,
+      sms_template_id: supportConfig.sms_template_id || null,
+      email_template_id: supportConfig.email_template_id || null,
     });
 
     console.log(`[CreateSupportAgent] Config saved, agent_id: ${agentRecord.id}`);

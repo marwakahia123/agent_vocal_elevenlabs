@@ -86,7 +86,9 @@ function buildEmailHtml(params: {
   duration_minutes: number;
   motif: string;
   meeting_link?: string | null;
+  header_color?: string;
 }): string {
+  const headerColor = params.header_color || "#0f172a";
   const meetingLinkRow = params.meeting_link
     ? `<tr>
         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; color: #64748b;">Reunion en ligne</td>
@@ -107,7 +109,7 @@ function buildEmailHtml(params: {
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #1e293b;">
-  <div style="background: #0f172a; color: white; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+  <div style="background: ${headerColor}; color: white; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
     <h1 style="margin: 0; font-size: 22px;">Confirmation de rendez-vous</h1>
   </div>
   <div style="border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
@@ -153,23 +155,32 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
-    const { user_id, to, client_name, date, time, duration_minutes, motif, meeting_link } = body;
+    const { user_id, to, client_name, date, time, duration_minutes, motif, meeting_link, custom_subject, custom_body, header_color } = body;
 
-    if (!user_id || !to || !client_name || !date || !time) {
+    if (!user_id || !to) {
       return new Response(
-        JSON.stringify({ error: "Champs requis: user_id, to, client_name, date, time" }),
+        JSON.stringify({ error: "Champs requis: user_id, to" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const subject = `Confirmation de votre rendez-vous - ${date} a ${time}`;
-    const html = buildEmailHtml({
+    // client_name, date, time only required when no custom_body (default RDV mode)
+    if (!custom_body && (!client_name || !date || !time)) {
+      return new Response(
+        JSON.stringify({ error: "Champs requis: client_name, date, time (ou fournir custom_body)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const subject = custom_subject || `Confirmation de votre rendez-vous - ${date} a ${time}`;
+    const html = custom_body || buildEmailHtml({
       client_name,
       date,
       time,
       duration_minutes: duration_minutes || 20,
       motif: motif || "Rendez-vous",
       meeting_link: meeting_link || null,
+      header_color: header_color || "#0f172a",
     });
 
     // Find user's active email integration
@@ -189,10 +200,13 @@ Deno.serve(async (req) => {
       if (tokenExpiry < new Date()) {
         accessToken = await refreshGoogleToken(supabase, user_id, googleInt.refresh_token as string);
       }
-      // Send via Gmail
+      // Send via Gmail — encode subject per RFC 2047 for non-ASCII chars
+      const mimeSubject = /[^\x00-\x7F]/.test(subject)
+        ? `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`
+        : subject;
       const email = [
         `To: ${to}`,
-        `Subject: ${subject}`,
+        `Subject: ${mimeSubject}`,
         "Content-Type: text/html; charset=utf-8",
         "",
         html,

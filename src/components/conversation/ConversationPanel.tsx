@@ -106,11 +106,27 @@ export default function ConversationPanel({ agentId }: Props) {
       // Si la sauvegarde echoue, on continue quand meme
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dateOverrides: any = {
+      agent: {
+        prompt: {
+          dynamic_variables: {
+            current_date: new Date().toLocaleDateString("fr-FR", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            }),
+          },
+        },
+      },
+    };
+
     try {
       const data = await getSignedUrl(agentId);
       if (data.signed_url) {
         addDebug("Demarrage avec signed URL...");
-        await conversation.startSession({ signedUrl: data.signed_url });
+        await conversation.startSession({ signedUrl: data.signed_url, overrides: dateOverrides });
         return;
       }
     } catch (signedUrlError) {
@@ -119,7 +135,7 @@ export default function ConversationPanel({ agentId }: Props) {
 
     try {
       addDebug("Fallback: connexion directe...");
-      await conversation.startSession({ agentId, connectionType: "websocket" });
+      await conversation.startSession({ agentId, connectionType: "websocket", overrides: dateOverrides });
     } catch (sessionError) {
       const msg = sessionError instanceof Error ? sessionError.message : String(sessionError);
       toast.error(`Erreur de connexion: ${msg}`);

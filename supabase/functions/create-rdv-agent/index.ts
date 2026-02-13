@@ -96,6 +96,9 @@ ${breaksList ? `- Pauses : ${breaksList}` : ""}
 - Sois toujours poli, professionnel et concis
 - Reponds aux questions sur les services en te basant sur la base de connaissances
 - Ne communique JAMAIS de lien de reunion (Google Meet, Teams, etc.) au client
+- Pour les questions simples ou de conversation courante, reponds directement sans utiliser d'outil. N'utilise les outils que quand c'est vraiment necessaire (reservation, verification de disponibilite, etc.).
+- Garde tes reponses courtes et directes. Pas de longs monologues.
+- Pour lire un numero de telephone, convertis le format international (+33) en format local (0) et lis les chiffres par paires. Exemple: +33667979483 se lit "zero six, soixante-sept, quatre-vingt-dix-sept, quatre-vingt-quatorze, quatre-vingt-trois". Ne dis jamais "plus trente-trois".
 
 ### Collecte d'adresse email par telephone
 Quand le client dicte son adresse email :
@@ -190,9 +193,9 @@ ${defaultNum ? `\nNumero de transfert par defaut: ${defaultNum}` : ""}
         type: "webhook",
         name: "rechercher_contact",
         description: "Recherche un contact existant par numero de telephone. Utilise TOUJOURS cet outil quand tu dois recuperer les informations du client avant de reserver un rendez-vous.",
-        response_timeout_secs: 10,
-        disable_interruptions: true,
-        force_pre_tool_speech: true,
+        response_timeout_secs: 8,
+        disable_interruptions: false,
+        force_pre_tool_speech: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -213,9 +216,9 @@ ${defaultNum ? `\nNumero de transfert par defaut: ${defaultNum}` : ""}
         type: "webhook",
         name: "verifier_disponibilite",
         description: "Verifie les creneaux disponibles pour un rendez-vous a une date donnee. Utilise cet outil quand le client veut prendre rendez-vous et mentionne une date. Retourne aussi la date actuelle.",
-        response_timeout_secs: 20,
-        disable_interruptions: true,
-        force_pre_tool_speech: true,
+        response_timeout_secs: 10,
+        disable_interruptions: false,
+        force_pre_tool_speech: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -236,9 +239,9 @@ ${defaultNum ? `\nNumero de transfert par defaut: ${defaultNum}` : ""}
         type: "webhook",
         name: "reserver_rendez_vous",
         description: "Reserve un creneau de rendez-vous pour le client. Utilise cet outil apres avoir confirme le creneau et collecte les informations du client (nom, telephone).",
-        response_timeout_secs: 20,
+        response_timeout_secs: 10,
         disable_interruptions: true,
-        force_pre_tool_speech: true,
+        force_pre_tool_speech: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -287,7 +290,7 @@ ${defaultNum ? `\nNumero de transfert par defaut: ${defaultNum}` : ""}
         type: "webhook",
         name: "transferer_appel",
         description: "Transfere l'appel en cours vers un conseiller humain. Utilise cet outil quand le client demande a parler a un humain ou quand tu ne peux pas repondre a sa question.",
-        response_timeout_secs: 20,
+        response_timeout_secs: 10,
         disable_interruptions: false,
         api_schema: {
           url: webhookUrl,
@@ -328,10 +331,14 @@ ${defaultNum ? `\nNumero de transfert par defaut: ${defaultNum}` : ""}
         },
         tts: {
           voice_id: body.voiceId,
-          model_id: "eleven_turbo_v2_5",
+          model_id: "eleven_flash_v2_5",
           stability: body.stability ?? 0.5,
           similarity_boost: body.similarityBoost ?? 0.8,
           speed: body.speed ?? 1.0,
+        },
+        turn: {
+          turn_eagerness: "eager",
+          turn_timeout: 1,
         },
         conversation: {
           max_duration_seconds: body.maxDurationSeconds ?? 600,
@@ -410,6 +417,8 @@ ${defaultNum ? `\nNumero de transfert par defaut: ${defaultNum}` : ""}
       sms_notification_enabled: rdvConfig.sms_notification_enabled ?? false,
       email_notification_enabled: rdvConfig.email_notification_enabled ?? false,
       webhook_secret: webhookSecret,
+      sms_template_id: rdvConfig.sms_template_id || null,
+      email_template_id: rdvConfig.email_template_id || null,
     });
 
     return new Response(JSON.stringify(data), {

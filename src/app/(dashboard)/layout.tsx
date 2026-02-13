@@ -22,9 +22,9 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <div className="flex-1 ml-[260px] flex flex-col">
+      <div className="flex-1 ml-0 md:ml-[260px] flex flex-col">
         <TopBar />
-        <main className="flex-1 p-6 bg-slate-50">
+        <main className="flex-1 p-3 md:p-6 bg-slate-50">
           {children}
         </main>
       </div>

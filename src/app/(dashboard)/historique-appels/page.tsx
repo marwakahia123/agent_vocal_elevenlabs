@@ -20,6 +20,8 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -187,6 +189,8 @@ function AudioPlayer({ elevenlabsConversationId }: { elevenlabsConversationId: s
   );
 }
 
+const PAGE_SIZE = 20;
+
 export default function HistoriqueAppelsPage() {
   const [conversations, setConversations] = useState<EnrichedConversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -197,18 +201,23 @@ export default function HistoriqueAppelsPage() {
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [agents, setAgents] = useState<{ id: string; name: string }[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const fetchConversations = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await listConversations();
+      const data = await listConversations(undefined, page, PAGE_SIZE);
       setConversations((data.conversations as EnrichedConversation[]) || []);
+      setTotalCount(data.totalCount || 0);
     } catch {
       toast.error("Erreur lors du chargement de l'historique");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     fetchConversations();
@@ -366,12 +375,12 @@ export default function HistoriqueAppelsPage() {
           <table>
             <thead>
               <tr>
-                <th>Date</th>
+                <th className="hidden md:table-cell">Date</th>
                 <th>Agent</th>
-                <th><Clock size={14} className="inline mr-1 align-middle" />Duree</th>
-                <th>Type</th>
+                <th className="hidden md:table-cell"><Clock size={14} className="inline mr-1 align-middle" />Duree</th>
+                <th className="hidden lg:table-cell">Type</th>
                 <th>Status</th>
-                <th>Telephone</th>
+                <th className="hidden md:table-cell">Telephone</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -382,12 +391,12 @@ export default function HistoriqueAppelsPage() {
                   onClick={() => setExpandedId(expandedId === conv.id ? null : conv.id)}
                   className="cursor-pointer"
                 >
-                  <td>{formatDate(conv.started_at)}</td>
+                  <td className="hidden md:table-cell">{formatDate(conv.started_at)}</td>
                   <td className="font-medium text-slate-900">
                     {(conv.agent as { name: string } | null)?.name || "—"}
                   </td>
-                  <td>{formatDuration(conv.duration_seconds)}</td>
-                  <td>
+                  <td className="hidden md:table-cell">{formatDuration(conv.duration_seconds)}</td>
+                  <td className="hidden lg:table-cell">
                     <span className="badge badge-info inline-flex items-center gap-1">
                       <CallTypeIcon type={conv.call_type || "test"} />
                       {CALL_TYPE_LABELS[conv.call_type || "test"] || conv.call_type}
@@ -407,7 +416,7 @@ export default function HistoriqueAppelsPage() {
                       )}
                     </div>
                   </td>
-                  <td>{conv.caller_phone || "—"}</td>
+                  <td className="hidden md:table-cell">{conv.caller_phone || "—"}</td>
                   <td>
                     <div className="flex items-center gap-2">
                       {conv.elevenlabs_conversation_id && (
@@ -481,9 +490,40 @@ export default function HistoriqueAppelsPage() {
         </div>
       )}
 
-      {!loading && filtered.length > 0 && (
-        <div className="mt-4 text-[0.8125rem] text-slate-500">
-          {filtered.length} appel{filtered.length > 1 ? "s" : ""} affiche{filtered.length > 1 ? "s" : ""}
+      {!loading && totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-[0.8125rem] text-slate-500">
+            {totalCount} appel{totalCount > 1 ? "s" : ""} au total
+          </span>
+          <div className="pagination">
+            <button className="pagination-btn" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              <ChevronLeft size={14} />
+            </button>
+            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+              let p: number;
+              if (totalPages <= 7) {
+                p = i + 1;
+              } else if (page <= 4) {
+                p = i + 1;
+              } else if (page >= totalPages - 3) {
+                p = totalPages - 6 + i;
+              } else {
+                p = page - 3 + i;
+              }
+              return (
+                <button
+                  key={p}
+                  className={`pagination-btn ${page === p ? "active" : ""}`}
+                  onClick={() => setPage(p)}
+                >
+                  {p}
+                </button>
+              );
+            })}
+            <button className="pagination-btn" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       )}
     </div>

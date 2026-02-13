@@ -151,6 +151,9 @@ Quand le client dicte son adresse email :
 - Ne JAMAIS inventer un prix — consulte toujours la KB
 - Sois toujours poli, professionnel et enthousiaste
 - Si le client hesite, propose les produits populaires ou les promotions de ta KB
+- Pour les questions simples ou de conversation courante, reponds directement sans utiliser d'outil. N'utilise les outils que quand c'est vraiment necessaire (reservation, recherche de contact, etc.).
+- Garde tes reponses courtes et directes. Pas de longs monologues.
+- Pour lire un numero de telephone, convertis le format international (+33) en format local (0) et lis les chiffres par paires. Exemple: +33667979483 se lit "zero six, soixante-sept, quatre-vingt-dix-sept, quatre-vingt-quatorze, quatre-vingt-trois". Ne dis jamais "plus trente-trois".
 
 ${notificationsPrompt}
 
@@ -204,9 +207,8 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "rechercher_client",
         description: "Recherche un client dans la base de donnees par telephone, email ou nom. Utilise cet outil pour identifier le client.",
-        response_timeout_secs: 15,
-        disable_interruptions: true,
-        force_pre_tool_speech: true,
+        response_timeout_secs: 8,
+        disable_interruptions: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -225,9 +227,8 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "enregistrer_client",
         description: "Enregistre un nouveau client dans la base de donnees. Utilise cet outil quand le client n'existe pas apres une recherche.",
-        response_timeout_secs: 15,
-        disable_interruptions: true,
-        force_pre_tool_speech: true,
+        response_timeout_secs: 8,
+        disable_interruptions: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -249,9 +250,8 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "enregistrer_commande",
         description: "Sauvegarde la commande validee dans la base de donnees. Utilise cet outil UNIQUEMENT apres que le client a confirme sa commande. Passe TOUS les articles avec leur nom, quantite et prix unitaire.",
-        response_timeout_secs: 20,
+        response_timeout_secs: 10,
         disable_interruptions: true,
-        force_pre_tool_speech: true,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -286,8 +286,8 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "envoyer_sms_facture",
         description: "Envoie un SMS au client contenant le recapitulatif de sa commande et le total. Utilise apres avoir enregistre la commande.",
-        response_timeout_secs: 15,
-        disable_interruptions: true,
+        response_timeout_secs: 8,
+        disable_interruptions: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -306,8 +306,8 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "envoyer_email_facture",
         description: "Envoie un email au client contenant la facture detaillee de sa commande. Utilise apres avoir enregistre la commande.",
-        response_timeout_secs: 15,
-        disable_interruptions: true,
+        response_timeout_secs: 8,
+        disable_interruptions: false,
         api_schema: {
           url: webhookUrl,
           method: "POST",
@@ -342,7 +342,7 @@ Deno.serve(async (req) => {
         type: "webhook",
         name: "transferer_appel",
         description: "Transfere l'appel en cours vers un conseiller humain. Utilise quand le client demande un humain ou quand tu ne peux pas repondre a sa question.",
-        response_timeout_secs: 20,
+        response_timeout_secs: 10,
         disable_interruptions: false,
         api_schema: {
           url: webhookUrl,
@@ -381,10 +381,14 @@ Deno.serve(async (req) => {
         },
         tts: {
           voice_id: body.voiceId,
-          model_id: "eleven_turbo_v2_5",
+          model_id: "eleven_flash_v2_5",
           stability: body.stability ?? 0.5,
           similarity_boost: body.similarityBoost ?? 0.8,
           speed: body.speed ?? 1.0,
+        },
+        turn: {
+          turn_eagerness: "eager",
+          turn_timeout: 1,
         },
         conversation: {
           max_duration_seconds: body.maxDurationSeconds ?? 600,
@@ -456,6 +460,8 @@ Deno.serve(async (req) => {
       currency: orderConfig.currency || "EUR",
       tax_rate: orderConfig.tax_rate ?? 0,
       webhook_secret: webhookSecret,
+      sms_template_id: orderConfig.sms_template_id || null,
+      email_template_id: orderConfig.email_template_id || null,
     });
 
     console.log(`[CreateOrderAgent] Config saved, agent_id: ${agentRecord.id}`);

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Megaphone, Play, Pause, Trash2, Eye } from "lucide-react";
+import { Plus, Megaphone, Play, Pause, Trash2, Eye, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { pauseCampaign } from "@/lib/elevenlabs";
@@ -17,6 +17,7 @@ export default function CampagnesPage() {
   const [form, setForm] = useState({ name: "", description: "", agent_id: "" });
   const [agents, setAgents] = useState<{ id: string; name: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCampaigns();
@@ -79,16 +80,17 @@ export default function CampagnesPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Supprimer cette campagne ?")) return;
+  async function confirmDelete() {
+    if (!deleteTarget) return;
     const supabase = createClient();
-    const { error } = await supabase.from("campaign_groups").delete().eq("id", id);
+    const { error } = await supabase.from("campaign_groups").delete().eq("id", deleteTarget);
     if (error) {
       toast.error("Erreur lors de la suppression");
     } else {
       toast.success("Campagne supprimee");
       fetchCampaigns();
     }
+    setDeleteTarget(null);
   }
 
   const statusColors: Record<string, { bg: string; color: string; label: string }> = {
@@ -110,7 +112,7 @@ export default function CampagnesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
           <h1 className="text-xl font-semibold text-slate-900 m-0">Campagnes</h1>
           <p className="text-sm text-slate-500 mt-1">Gerez vos campagnes d&apos;appels sortants</p>
@@ -127,7 +129,7 @@ export default function CampagnesPage() {
           <p className="empty-state-desc">Creez votre premiere campagne d&apos;appels</p>
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
           {campaigns.map((c) => {
             const s = statusColors[c.status] || statusColors.draft;
             const progress = c.total_contacts > 0 ? Math.round((c.contacts_called / c.total_contacts) * 100) : 0;
@@ -167,7 +169,7 @@ export default function CampagnesPage() {
                   )}
                   <button
                     className="btn-ghost flex items-center gap-1 py-1.5"
-                    onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
+                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(c.id); }}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -177,6 +179,43 @@ export default function CampagnesPage() {
           })}
         </div>
       )}
+
+      {/* Delete confirmation modal */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setDeleteTarget(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative bg-white rounded-xl p-6 w-full max-w-sm mx-4 shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                  <AlertTriangle size={18} className="text-red-600" />
+                </div>
+                <h2 className="text-lg font-bold m-0 text-slate-900">Supprimer la campagne</h2>
+              </div>
+              <p className="text-sm text-slate-600 mb-6">
+                Cette action est irreversible. Tous les contacts et donnees associes seront supprimes.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setDeleteTarget(null)} className="btn-secondary">Annuler</button>
+                <button onClick={confirmDelete} className="btn-primary flex items-center gap-1" style={{ backgroundColor: "#DC2626" }}>
+                  <Trash2 size={14} /> Supprimer
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showModal && (

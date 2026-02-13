@@ -263,6 +263,27 @@ export interface AgentRdvConfig {
   default_transfer_number: string | null;
   sms_notification_enabled: boolean;
   email_notification_enabled: boolean;
+  sms_template_id: string | null;
+  email_template_id: string | null;
+  webhook_secret: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Agent Support Config
+export interface AgentSupportConfig {
+  id: string;
+  agent_id: string;
+  user_id: string;
+  transfer_enabled: boolean;
+  always_transfer: boolean;
+  transfer_conditions: TransferCondition[];
+  default_transfer_number: string | null;
+  sms_enabled: boolean;
+  email_enabled: boolean;
+  sms_template_id: string | null;
+  email_template_id: string | null;
+  default_priority: string;
   webhook_secret: string;
   created_at: string;
   updated_at: string;
@@ -279,9 +300,82 @@ export interface AgentOrderConfig {
   default_transfer_number: string | null;
   sms_enabled: boolean;
   email_enabled: boolean;
+  sms_template_id: string | null;
+  email_template_id: string | null;
   currency: string;
   tax_rate: number;
   webhook_secret: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Agent Commercial Config
+export interface AgentCommercialConfig {
+  id: string;
+  agent_id: string;
+  user_id: string;
+  product_name: string | null;
+  product_description: string | null;
+  sales_pitch: string | null;
+  objection_handling: string | null;
+  filler_words: string[];
+  availability_enabled: boolean;
+  working_days: string[];
+  start_time: string;
+  end_time: string;
+  slot_duration_minutes: number;
+  breaks: { start: string; end: string }[];
+  min_delay_hours: number;
+  max_horizon_days: number;
+  transfer_enabled: boolean;
+  always_transfer: boolean;
+  transfer_conditions: TransferCondition[];
+  default_transfer_number: string | null;
+  sms_enabled: boolean;
+  email_enabled: boolean;
+  sms_template_id: string | null;
+  email_template_id: string | null;
+  meeting_link: string | null;
+  webhook_secret: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Lead (qualification prospect)
+export interface Lead {
+  id: string;
+  user_id: string;
+  contact_id: string | null;
+  agent_id: string | null;
+  conversation_id: string | null;
+  campaign_contact_id: string | null;
+  status: 'pending' | 'interested' | 'not_interested' | 'callback' | 'transferred' | 'converted';
+  interest_level: number | null;
+  notes: string | null;
+  callback_date: string | null;
+  appointment_date: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  contact_company: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  contact?: Contact;
+}
+
+// Notification Template
+export interface NotificationTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  channel: 'sms' | 'email';
+  agent_type: 'rdv' | 'support' | 'order' | 'commercial';
+  subject: string | null;
+  content: string;
+  variables: string[];
+  is_default: boolean;
+  header_color: string;
   created_at: string;
   updated_at: string;
 }

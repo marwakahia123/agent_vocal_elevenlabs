@@ -5,10 +5,10 @@ import { toast } from "sonner";
 import {
   Loader2, Upload, Link2, X, FileText, Globe, Play, Square,
   Phone, MessageSquare, Mail, ChevronLeft, ArrowRight, Info,
-  Plus, Trash2,
+  Plus, Trash2, Briefcase, Calendar,
 } from "lucide-react";
 import { SUPPORTED_LANGUAGES, LLM_MODELS, DEFAULT_FORM_VALUES } from "@/lib/constants";
-import { listVoices, createSupportAgent, updateSupportAgent, uploadKnowledgeBase } from "@/lib/elevenlabs";
+import { listVoices, createCommercialAgent, updateCommercialAgent, uploadKnowledgeBase } from "@/lib/elevenlabs";
 import { createClient } from "@/lib/supabase/client";
 import type { Voice, CreateAgentFormData } from "@/types/elevenlabs";
 import type { KnowledgeBaseItem, NotificationTemplate } from "@/types/database";
@@ -34,18 +34,19 @@ const DAYS = [
 ];
 
 const TIMEZONES = [
-  "Europe/Paris",
-  "Europe/London",
-  "Europe/Berlin",
-  "Europe/Madrid",
-  "Europe/Rome",
-  "Europe/Brussels",
-  "America/New_York",
-  "America/Chicago",
-  "America/Los_Angeles",
-  "Africa/Casablanca",
-  "Africa/Tunis",
+  "Europe/Paris", "Europe/London", "Europe/Berlin", "Europe/Madrid",
+  "Europe/Rome", "Europe/Brussels", "America/New_York", "America/Chicago",
+  "America/Los_Angeles", "Africa/Casablanca", "Africa/Tunis",
 ];
+
+const FILLER_OPTIONS = [
+  { value: "emm", label: "Emm..." },
+  { value: "eh", label: "Eh..." },
+  { value: "tak tak", label: "Tak tak" },
+  { value: "opla", label: "Opla !" },
+];
+
+const SLOT_DURATIONS = [15, 20, 30, 45, 60];
 
 interface TransferConditionForm {
   id: string;
@@ -83,7 +84,7 @@ interface Props {
   initialData?: Partial<CreateAgentFormData>;
 }
 
-export default function SupportAgentForm({ onCreated, onCancel, editMode, agentId, initialData }: Props) {
+export default function CommercialAgentForm({ onCreated, onCancel, editMode, agentId, initialData }: Props) {
   // Basic info
   const [name, setName] = useState(initialData?.name || "");
   const [firstMessage, setFirstMessage] = useState(initialData?.firstMessage || "");
@@ -91,6 +92,11 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
   const [voiceId, setVoiceId] = useState(initialData?.voiceId || "");
   const [language, setLanguage] = useState<string>(initialData?.language || DEFAULT_FORM_VALUES.language);
   const [llmModel, setLlmModel] = useState<string>(initialData?.llmModel || DEFAULT_FORM_VALUES.llmModel);
+  const [temperature, setTemperature] = useState(initialData?.temperature ?? DEFAULT_FORM_VALUES.temperature);
+  const [stability, setStability] = useState(initialData?.stability ?? DEFAULT_FORM_VALUES.stability);
+  const [similarityBoost, setSimilarityBoost] = useState(initialData?.similarityBoost ?? DEFAULT_FORM_VALUES.similarityBoost);
+  const [speed, setSpeed] = useState(initialData?.speed ?? DEFAULT_FORM_VALUES.speed);
+  const [maxDurationSeconds, setMaxDurationSeconds] = useState(initialData?.maxDurationSeconds ?? DEFAULT_FORM_VALUES.maxDurationSeconds);
 
   // Voices
   const [voices, setVoices] = useState<Voice[]>([]);
@@ -106,6 +112,23 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
   const [kbUrl, setKbUrl] = useState("");
   const [kbUrls, setKbUrls] = useState<string[]>([]);
   const [existingKbItems, setExistingKbItems] = useState<KnowledgeBaseItem[]>([]);
+
+  // Commercial-specific settings
+  const [productName, setProductName] = useState("");
+  const [productDescription, setProductDescription] = useState("");
+  const [salesPitch, setSalesPitch] = useState("");
+  const [objectionHandling, setObjectionHandling] = useState("");
+  const [fillerWords, setFillerWords] = useState<string[]>([]);
+
+  // Availability
+  const [availabilityEnabled, setAvailabilityEnabled] = useState(false);
+  const [workingDays, setWorkingDays] = useState(["lun", "mar", "mer", "jeu", "ven"]);
+  const [startTimeAvail, setStartTimeAvail] = useState("09:00");
+  const [endTimeAvail, setEndTimeAvail] = useState("17:00");
+  const [slotDuration, setSlotDuration] = useState(30);
+  const [breaks, setBreaks] = useState<{ start: string; end: string }[]>([{ start: "12:00", end: "14:00" }]);
+  const [minDelay, setMinDelay] = useState(2);
+  const [maxHorizon, setMaxHorizon] = useState(30);
 
   // Transfer
   const [transferEnabled, setTransferEnabled] = useState(false);
@@ -140,14 +163,13 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load existing support config + KB items in edit mode
+  // Load existing commercial config + KB items in edit mode
   useEffect(() => {
     if (!editMode || !agentId) return;
     const supabase = createClient();
 
     (async () => {
       try {
-        // Find agent record by elevenlabs_agent_id
         const { data: agent } = await supabase
           .from("agents")
           .select("id")
@@ -156,23 +178,34 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
 
         if (!agent) return;
 
-        // Load support config
         const { data: config } = await supabase
-          .from("agent_support_config")
+          .from("agent_commercial_config")
           .select("*")
           .eq("agent_id", agent.id)
           .single();
 
         if (config) {
+          setProductName(config.product_name || "");
+          setProductDescription(config.product_description || "");
+          setSalesPitch(config.sales_pitch || "");
+          setObjectionHandling(config.objection_handling || "");
+          setFillerWords(config.filler_words || []);
           setTransferEnabled(config.transfer_enabled ?? false);
           setAlwaysTransfer(config.always_transfer ?? false);
           setDefaultTransferNumber(config.default_transfer_number || "");
+          setAvailabilityEnabled(config.availability_enabled ?? false);
+          setWorkingDays(config.working_days || ["lun", "mar", "mer", "jeu", "ven"]);
+          setStartTimeAvail(config.start_time || "09:00");
+          setEndTimeAvail(config.end_time || "17:00");
+          setSlotDuration(config.slot_duration_minutes || 30);
+          setBreaks(config.breaks || [{ start: "12:00", end: "14:00" }]);
+          setMinDelay(config.min_delay_hours ?? 2);
+          setMaxHorizon(config.max_horizon_days ?? 30);
           setSmsEnabled(config.sms_enabled ?? false);
           setEmailEnabled(config.email_enabled ?? false);
           setSmsTemplateId(config.sms_template_id || "");
           setEmailTemplateId(config.email_template_id || "");
 
-          // Load transfer conditions
           const conditions = (config.transfer_conditions as TransferConditionForm[]) || [];
           if (conditions.length > 0) {
             setTransferConditions(conditions.map((c) => ({
@@ -183,7 +216,6 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
           }
         }
 
-        // Load existing KB items
         const { data: kbItems } = await supabase
           .from("knowledge_base_items")
           .select("*")
@@ -201,7 +233,7 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
     })();
   }, [editMode, agentId]);
 
-  // Load notification templates for support agent
+  // Load notification templates for commercial agent
   useEffect(() => {
     const supabase = createClient();
     (async () => {
@@ -211,7 +243,7 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
         .from("notification_templates")
         .select("*")
         .eq("user_id", user.id)
-        .eq("agent_type", "support")
+        .eq("agent_type", "commercial")
         .order("name");
       if (data) {
         setSmsTemplates((data as NotificationTemplate[]).filter((t) => t.channel === "sms"));
@@ -238,7 +270,7 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
       setPlayingVoiceId(null);
       return;
     }
-    const textToSpeak = firstMessage.trim() || "Bonjour, je suis votre assistant support. Comment puis-je vous aider ?";
+    const textToSpeak = firstMessage.trim() || "Bonjour, je vous appelle pour vous presenter une offre qui pourrait vous interesser.";
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     setLoadingPreview(true);
     setPlayingVoiceId(voiceId);
@@ -300,6 +332,16 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
     setTransferConditions((prev) => [...prev, newTransferCondition()]);
   };
 
+  // Availability helpers
+  const toggleDay = (key: string) => {
+    setWorkingDays(prev => prev.includes(key) ? prev.filter(d => d !== key) : [...prev, key]);
+  };
+  const addBreak = () => setBreaks(prev => [...prev, { start: "12:00", end: "13:00" }]);
+  const removeBreak = (i: number) => setBreaks(prev => prev.filter((_, idx) => idx !== i));
+  const updateBreak = (i: number, field: "start" | "end", value: string) => {
+    setBreaks(prev => prev.map((b, idx) => idx === i ? { ...b, [field]: value } : b));
+  };
+
   // Submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -309,7 +351,20 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
     }
     setSubmitting(true);
     try {
-      const supportConfig = {
+      const commercialConfig = {
+        product_name: productName,
+        product_description: productDescription,
+        sales_pitch: salesPitch,
+        objection_handling: objectionHandling,
+        filler_words: fillerWords,
+        availability_enabled: availabilityEnabled,
+        working_days: workingDays,
+        start_time: startTimeAvail,
+        end_time: endTimeAvail,
+        slot_duration_minutes: slotDuration,
+        breaks,
+        min_delay_hours: minDelay,
+        max_horizon_days: maxHorizon,
         transfer_enabled: transferEnabled,
         always_transfer: alwaysTransfer,
         transfer_conditions: transferConditions.map((c) => ({
@@ -337,21 +392,21 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
         voiceId,
         language,
         llmModel,
-        temperature: DEFAULT_FORM_VALUES.temperature,
-        stability: DEFAULT_FORM_VALUES.stability,
-        similarityBoost: DEFAULT_FORM_VALUES.similarityBoost,
-        speed: DEFAULT_FORM_VALUES.speed,
-        maxDurationSeconds: DEFAULT_FORM_VALUES.maxDurationSeconds,
-        supportConfig,
+        temperature,
+        stability,
+        similarityBoost,
+        speed,
+        maxDurationSeconds,
+        commercialConfig,
       };
 
       let targetAgentId = agentId;
 
       if (editMode && agentId) {
-        await updateSupportAgent(agentId, formPayload);
+        await updateCommercialAgent(agentId, formPayload);
         targetAgentId = agentId;
       } else {
-        const result = await createSupportAgent(formPayload);
+        const result = await createCommercialAgent(formPayload);
         targetAgentId = result.agent_id;
       }
 
@@ -373,7 +428,7 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
         }
       }
 
-      toast.success(editMode ? "Agent Support mis a jour !" : "Agent Support cree avec succes !");
+      toast.success(editMode ? "Agent Commercial mis a jour !" : "Agent Commercial cree avec succes !");
       onCreated();
     } catch (err) {
       toast.error((err as Error).message || "Erreur lors de la sauvegarde");
@@ -395,12 +450,12 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
       {/* ========== Section 1: Basic Info ========== */}
       <div>
         <label className="label">Nom de l&apos;agent *</label>
-        <input className="input-field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Agent Support Client" required />
+        <input className="input-field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Agent Commercial Assurance" required />
       </div>
 
       <div>
         <label className="label">Message d&apos;accueil *</label>
-        <textarea className="input-field min-h-[80px]" value={firstMessage} onChange={(e) => setFirstMessage(e.target.value)} placeholder="Bonjour, je suis votre assistant support. Comment puis-je vous aider aujourd'hui ?" />
+        <textarea className="input-field min-h-[80px]" value={firstMessage} onChange={(e) => setFirstMessage(e.target.value)} placeholder="Bonjour {{contact_name}}, je suis [votre nom] de [entreprise]. Je m'adresse bien a {{contact_name}} ? Parfait, je vous contacte car nous avons une solution qui pourrait vous interesser, avez-vous quelques minutes ?" />
         <p className="text-xs text-slate-400 mt-1">Premier message que l&apos;agent prononcera lors de l&apos;appel</p>
       </div>
 
@@ -445,7 +500,7 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
 
       <div>
         <label className="label">Prompt systeme (optionnel)</label>
-        <textarea className="input-field min-h-[100px]" value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Instructions supplementaires pour l'agent support (ex: nom de l'entreprise, procedures specifiques, FAQ...)" />
+        <textarea className="input-field min-h-[100px]" value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Instructions supplementaires (ex: nom de l'entreprise, contexte, ton...)" />
         <p className="text-xs text-slate-400 mt-1">Ces instructions seront ajoutees au debut du prompt de l&apos;agent</p>
       </div>
 
@@ -468,13 +523,262 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
         </div>
       </div>
 
-      {/* ========== Section 2: Knowledge Base ========== */}
+      {/* Temperature slider */}
+      <div>
+        <label className="label">
+          Temperature : {temperature}
+        </label>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.1"
+          value={temperature}
+          onChange={(e) => setTemperature(parseFloat(e.target.value))}
+          className="w-full accent-slate-900"
+        />
+        <div className="flex justify-between text-xs text-slate-400">
+          <span>Precis</span>
+          <span>Creatif</span>
+        </div>
+      </div>
+
+      {/* Parametres avances */}
+      <details className="border border-slate-200 rounded-lg">
+        <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-slate-700">
+          Parametres avances de la voix
+        </summary>
+        <div className="px-4 pb-4 flex flex-col gap-4">
+          <div>
+            <label className="label">Stabilite : {stability}</label>
+            <input
+              type="range" min="0" max="1" step="0.05"
+              value={stability}
+              onChange={(e) => setStability(parseFloat(e.target.value))}
+              className="w-full accent-slate-900"
+            />
+          </div>
+          <div>
+            <label className="label">Similarite : {similarityBoost}</label>
+            <input
+              type="range" min="0" max="1" step="0.05"
+              value={similarityBoost}
+              onChange={(e) => setSimilarityBoost(parseFloat(e.target.value))}
+              className="w-full accent-slate-900"
+            />
+          </div>
+          <div>
+            <label className="label">Vitesse : {speed}</label>
+            <input
+              type="range" min="0.5" max="2" step="0.1"
+              value={speed}
+              onChange={(e) => setSpeed(parseFloat(e.target.value))}
+              className="w-full accent-slate-900"
+            />
+          </div>
+          <div>
+            <label className="label">Duree max (secondes)</label>
+            <input
+              type="number"
+              className="input-field"
+              value={maxDurationSeconds}
+              onChange={(e) => setMaxDurationSeconds(parseInt(e.target.value))}
+              min={60}
+              max={3600}
+            />
+          </div>
+        </div>
+      </details>
+
+      {/* ========== Section 2: Produit / Service ========== */}
+      <div className="border-t border-slate-200 pt-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Briefcase size={18} className="text-slate-600" />
+          <h3 className="text-base font-semibold text-slate-900 m-0">Produit / Service</h3>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="label">Nom du produit/service</label>
+            <input
+              className="input-field"
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+              placeholder="ex: Assurance habitation Premium"
+            />
+          </div>
+          <div>
+            <label className="label">Description du produit/service</label>
+            <textarea
+              className="input-field min-h-[80px]"
+              value={productDescription}
+              onChange={(e) => setProductDescription(e.target.value)}
+              placeholder="Description detaillee du produit ou service que l'agent doit presenter..."
+            />
+          </div>
+          <div>
+            <label className="label">Argumentaire de vente</label>
+            <textarea
+              className="input-field min-h-[100px]"
+              value={salesPitch}
+              onChange={(e) => setSalesPitch(e.target.value)}
+              placeholder="Points cles, avantages, tarifs... L'agent utilisera ces elements pour convaincre le prospect."
+            />
+          </div>
+          <div>
+            <label className="label">Gestion des objections</label>
+            <textarea
+              className="input-field min-h-[100px]"
+              value={objectionHandling}
+              onChange={(e) => setObjectionHandling(e.target.value)}
+              placeholder="Comment repondre aux objections courantes (prix trop eleve, pas interesse, deja couvert...)"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ========== Section: Style de conversation (fillers) ========== */}
+      <div className="border-t border-slate-200 pt-6">
+        <div className="flex items-center gap-2 mb-4">
+          <MessageSquare size={18} className="text-slate-600" />
+          <h3 className="text-base font-semibold text-slate-900 m-0">Style de conversation</h3>
+        </div>
+        <p className="text-sm text-slate-500 mb-4">Activez des expressions naturelles pour rendre l&apos;agent plus humain et conversationnel.</p>
+        <div className="flex flex-wrap gap-3">
+          {FILLER_OPTIONS.map((filler) => {
+            const isActive = fillerWords.includes(filler.value);
+            return (
+              <button
+                key={filler.value}
+                type="button"
+                onClick={() => {
+                  setFillerWords((prev) =>
+                    isActive ? prev.filter((w) => w !== filler.value) : [...prev, filler.value]
+                  );
+                }}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-blue-50 border-blue-300 text-blue-700"
+                    : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                {filler.label}
+              </button>
+            );
+          })}
+        </div>
+        {fillerWords.length > 0 && (
+          <p className="text-xs text-slate-400 mt-2">
+            L&apos;agent utilisera ces expressions environ 1 fois sur 3 phrases pour un style plus naturel.
+          </p>
+        )}
+      </div>
+
+      {/* ========== Section: Horaires de Disponibilite ========== */}
+      <div className="border-t border-slate-200 pt-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Calendar size={18} className="text-slate-600" />
+            <h3 className="text-base font-semibold text-slate-900 m-0">Horaires de Disponibilite</h3>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" className="sr-only peer" checked={availabilityEnabled} onChange={(e) => setAvailabilityEnabled(e.target.checked)} />
+            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900" />
+          </label>
+        </div>
+        <p className="text-sm text-slate-500 mb-4">Definir des creneaux de disponibilite fixes pour la prise de rendez-vous</p>
+
+        {availabilityEnabled && (
+          <div className="space-y-4 pl-1">
+            {/* Working days */}
+            <div>
+              <label className="label">Jours de travail</label>
+              <div className="flex gap-2 flex-wrap">
+                {DAYS.map((d) => (
+                  <button
+                    key={d.key}
+                    type="button"
+                    onClick={() => toggleDay(d.key)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      workingDays.includes(d.key)
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Hours */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Heure de debut</label>
+                <input type="time" className="input-field" value={startTimeAvail} onChange={(e) => setStartTimeAvail(e.target.value)} />
+                <p className="text-xs text-slate-400 mt-1">Format 24h (ex: 09:00)</p>
+              </div>
+              <div>
+                <label className="label">Heure de fin</label>
+                <input type="time" className={`input-field ${endTimeAvail && startTimeAvail && endTimeAvail <= startTimeAvail ? "border-red-400" : ""}`} value={endTimeAvail} onChange={(e) => setEndTimeAvail(e.target.value)} />
+                <p className={`text-xs mt-1 ${endTimeAvail && startTimeAvail && endTimeAvail <= startTimeAvail ? "text-red-500 font-medium" : "text-slate-400"}`}>
+                  {endTimeAvail && startTimeAvail && endTimeAvail <= startTimeAvail ? "L'heure de fin doit etre apres l'heure de debut" : "Format 24h (ex: 17:00)"}
+                </p>
+              </div>
+            </div>
+
+            {/* Slot duration */}
+            <div>
+              <label className="label">Duree des creneaux (minutes)</label>
+              <select className="input-field" value={slotDuration} onChange={(e) => setSlotDuration(Number(e.target.value))}>
+                {SLOT_DURATIONS.map((d) => (
+                  <option key={d} value={d}>{d} minutes</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Breaks */}
+            <div>
+              <label className="label">Pauses (ex: dejeuner)</label>
+              {breaks.map((b, i) => (
+                <div key={i} className="flex items-center gap-2 mb-2">
+                  <input type="time" className="input-field w-32" value={b.start} onChange={(e) => updateBreak(i, "start", e.target.value)} />
+                  <span className="text-slate-400 text-sm">a</span>
+                  <input type="time" className="input-field w-32" value={b.end} onChange={(e) => updateBreak(i, "end", e.target.value)} />
+                  <button type="button" onClick={() => removeBreak(i)} className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100">
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={addBreak} className="btn-secondary text-sm flex items-center gap-1 mt-1">
+                <Plus size={14} /> Ajouter une pause
+              </button>
+            </div>
+
+            {/* Min delay & max horizon */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Delai minimum (heures)</label>
+                <input type="number" className="input-field" value={minDelay} onChange={(e) => setMinDelay(Number(e.target.value))} min={0} />
+                <p className="text-xs text-slate-400 mt-1">RDV minimum {minDelay}h a l&apos;avance</p>
+              </div>
+              <div>
+                <label className="label">Planifier jusqu&apos;a (jours)</label>
+                <input type="number" className="input-field" value={maxHorizon} onChange={(e) => setMaxHorizon(Number(e.target.value))} min={1} />
+                <p className="text-xs text-slate-400 mt-1">Jusqu&apos;a {maxHorizon} jours a l&apos;avance</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ========== Section 3: Knowledge Base ========== */}
       <div className="border-t border-slate-200 pt-6">
         <div className="flex items-center gap-2 mb-4">
           <FileText size={18} className="text-slate-600" />
           <h3 className="text-base font-semibold text-slate-900 m-0">Base de connaissances</h3>
         </div>
-        <p className="text-sm text-slate-500 mb-4">Documents de support, FAQ, guides de depannage que l&apos;agent utilisera pour resoudre les problemes AVANT de creer un ticket</p>
+        <p className="text-sm text-slate-500 mb-4">Importez des documents sur votre produit/service. L&apos;agent les utilisera pour repondre aux questions techniques.</p>
 
         {/* Existing KB items (edit mode) */}
         {existingKbItems.length > 0 && (
@@ -512,7 +816,7 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
         <div className="flex gap-2 mt-3">
           <div className="flex items-center gap-2 flex-1">
             <Globe size={14} className="text-slate-400 shrink-0" />
-            <input className="input-field flex-1" placeholder="https://example.com/faq" value={kbUrl} onChange={(e) => setKbUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addKbUrl())} />
+            <input className="input-field flex-1" placeholder="https://example.com/produit" value={kbUrl} onChange={(e) => setKbUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addKbUrl())} />
           </div>
           <button type="button" onClick={addKbUrl} className="btn-secondary text-sm" disabled={!kbUrl.trim()}>
             <Link2 size={14} />
@@ -529,7 +833,7 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
         ))}
       </div>
 
-      {/* ========== Section 3: Transfer ========== */}
+      {/* ========== Section 4: Transfer ========== */}
       <div className="border-t border-slate-200 pt-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -545,13 +849,11 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
 
         {transferEnabled && (
           <div className="space-y-4 pl-1">
-            {/* Always transfer */}
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" className="accent-slate-900 w-4 h-4" checked={alwaysTransfer} onChange={(e) => setAlwaysTransfer(e.target.checked)} />
               <span className="text-sm text-slate-700">Toujours transferer les appels (sans condition)</span>
             </label>
 
-            {/* Conditions */}
             {!alwaysTransfer && (
               <>
                 {transferConditions.map((cond, idx) => (
@@ -568,7 +870,7 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
                     <div className="space-y-3">
                       <div>
                         <label className="label">Nom du transfert</label>
-                        <input className="input-field" value={cond.name} onChange={(e) => updateCondition(cond.id, "name", e.target.value)} placeholder="ex: Transfert vers support FR" />
+                        <input className="input-field" value={cond.name} onChange={(e) => updateCondition(cond.id, "name", e.target.value)} placeholder="ex: Transfert vers manager" />
                       </div>
 
                       <div>
@@ -591,7 +893,6 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
                         <textarea className="input-field min-h-[70px]" value={cond.instructions} onChange={(e) => updateCondition(cond.id, "instructions", e.target.value)} placeholder="Ajoutez des instructions specifiques pour ce transfert..." />
                       </div>
 
-                      {/* Time restriction */}
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" className="accent-slate-900 w-4 h-4" checked={cond.time_restricted} onChange={(e) => updateCondition(cond.id, "time_restricted", e.target.checked)} />
                         <span className="text-sm text-slate-700">Restreindre a une plage horaire</span>
@@ -655,7 +956,6 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
               </>
             )}
 
-            {/* Default transfer number */}
             <div>
               <label className="label">Numero de transfert par defaut (optionnel)</label>
               <input className="input-field" type="tel" value={defaultTransferNumber} onChange={(e) => setDefaultTransferNumber(e.target.value)} placeholder="+33612345678" />
@@ -677,7 +977,7 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
             <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900" />
           </label>
         </div>
-        <p className="text-sm text-slate-500 mb-4">Permettre a l&apos;agent d&apos;envoyer des SMS de confirmation au client</p>
+        <p className="text-sm text-slate-500 mb-4">Envoyer un SMS au prospect avec les informations produit ou la confirmation de rendez-vous</p>
 
         {smsEnabled && (
           <div className="space-y-3">
@@ -713,7 +1013,7 @@ export default function SupportAgentForm({ onCreated, onCancel, editMode, agentI
             <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900" />
           </label>
         </div>
-        <p className="text-sm text-slate-500 mb-4">Permettre a l&apos;agent d&apos;envoyer des emails au client</p>
+        <p className="text-sm text-slate-500 mb-4">Envoyer un email au prospect avec les details du produit ou la confirmation de rendez-vous</p>
 
         {emailEnabled && (
           <div className="space-y-3">

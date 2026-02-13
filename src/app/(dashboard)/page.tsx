@@ -10,8 +10,7 @@ import {
   TrendingUp,
   Star,
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import type { PieLabelRenderProps } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/lib/supabase/client";
 
@@ -154,7 +153,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 sm:gap-4 mb-6">
         {statCards.map((card) => (
           <div key={card.label} className="stat-card">
             <div className="flex items-center justify-between">
@@ -171,7 +170,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-[2fr_1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
         <div className="card">
           <h2 className="text-base font-semibold text-slate-900 mb-4">
             Activite des appels (7 derniers jours)
@@ -198,23 +197,34 @@ export default function DashboardPage() {
             Repartition par type
           </h2>
           {callsByType.length > 0 ? (
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
                   data={callsByType}
                   cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
+                  cy="45%"
+                  innerRadius={50}
+                  outerRadius={85}
                   paddingAngle={2}
                   dataKey="value"
-                  label={(props: PieLabelRenderProps) => `${props.name ?? ""} ${(((props.percent as number) ?? 0) * 100).toFixed(0)}%`}
                 >
                   {callsByType.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
+                <Legend
+                  verticalAlign="bottom"
+                  align="center"
+                  iconType="circle"
+                  iconSize={8}
+                  formatter={(value: string, entry) => {
+                    const total = callsByType.reduce((sum, d) => sum + d.value, 0);
+                    const item = callsByType.find((d) => d.name === value);
+                    const pct = item && total > 0 ? Math.round((item.value / total) * 100) : 0;
+                    return <span style={{ color: entry.color, fontSize: "0.8125rem" }}>{value} {pct}%</span>;
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
           ) : (

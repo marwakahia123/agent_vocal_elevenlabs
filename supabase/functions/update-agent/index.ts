@@ -84,10 +84,14 @@ Deno.serve(async (req) => {
         },
         tts: {
           voice_id: body.voiceId,
-          model_id: "eleven_turbo_v2_5",
+          model_id: "eleven_flash_v2_5",
           stability: body.stability ?? 0.5,
           similarity_boost: body.similarityBoost ?? 0.8,
           speed: body.speed ?? 1.0,
+        },
+        turn: {
+          turn_eagerness: "eager",
+          turn_timeout: 1,
         },
         conversation: {
           max_duration_seconds: body.maxDurationSeconds ?? 600,

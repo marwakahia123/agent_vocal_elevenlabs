@@ -44,7 +44,7 @@ export interface ConversationConfig {
 export interface Agent {
   agent_id: string;
   name: string;
-  agent_type?: "standard" | "rdv" | "support" | "order";
+  agent_type?: "standard" | "rdv" | "support" | "order" | "commercial";
   conversation_config: ConversationConfig;
   created_at_unix_secs?: number;
   metadata?: Record<string, unknown>;
@@ -126,9 +126,33 @@ export interface DbMessage {
 
 export interface ConversationsListResponse {
   conversations: DbConversation[];
+  totalCount?: number;
 }
 
 export interface SupportConfigFormData {
+  transfer_enabled: boolean;
+  always_transfer: boolean;
+  transfer_conditions: {
+    name: string;
+    phone: string;
+    condition: string;
+    instructions: string;
+    time_restricted: boolean;
+    timezone: string;
+    time_from: string;
+    time_to: string;
+    active_days: string[];
+  }[];
+  default_transfer_number: string;
+  sms_enabled: boolean;
+  email_enabled: boolean;
+}
+
+export interface CommercialConfigFormData {
+  product_name: string;
+  product_description: string;
+  sales_pitch: string;
+  objection_handling: string;
   transfer_enabled: boolean;
   always_transfer: boolean;
   transfer_conditions: {

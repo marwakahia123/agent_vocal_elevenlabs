@@ -155,6 +155,27 @@ function resolveDate(input: string): string {
   return trimmed;
 }
 
+// ========== Template Helpers ==========
+
+function replaceTemplateVars(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '');
+}
+
+function wrapInEmailLayout(headerColor: string, title: string, bodyHtml: string): string {
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #1e293b;">
+  <div style="background: ${headerColor}; color: white; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+    <h1 style="margin: 0; font-size: 22px;">${title}</h1>
+  </div>
+  <div style="border: 1px solid #e2e8f0; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+    ${bodyHtml}
+    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+    <p style="color: #94a3b8; font-size: 12px; text-align: center;">Ce message a ete envoye automatiquement par HallCall.</p>
+  </div>
+</body></html>`.trim();
+}
+
 // ========== Calendar Integration ==========
 
 interface CalendarBusySlot {
@@ -471,6 +492,8 @@ interface RdvConfig {
   max_horizon_days: number;
   sms_notification_enabled: boolean;
   email_notification_enabled: boolean;
+  sms_template_id: string | null;
+  email_template_id: string | null;
   webhook_secret: string;
 }
 
@@ -816,7 +839,40 @@ async function handleBookAppointment(
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       console.log(`[BookAppointment] Sending SMS to ${normalizedPhone}...`);
-      const smsContent = `Bonjour ${client_name}, votre rendez-vous est confirme pour le ${date} a ${time}. Duree: ${config.slot_duration_minutes} min. Motif: ${effectiveMotif}.${meetingLinkText} A bientot !`;
+
+      let smsContent: string;
+
+      if (config.sms_template_id) {
+        // Load custom template from notification_templates table
+        const { data: tpl } = await supabase
+          .from("notification_templates")
+          .select("content")
+          .eq("id", config.sms_template_id)
+          .single();
+
+        if (tpl?.content) {
+          const templateVars: Record<string, string> = {
+            client_name: client_name || "",
+            client_phone: normalizedPhone,
+            client_email: client_email || "",
+            date,
+            time,
+            duration: String(config.slot_duration_minutes),
+            motif: effectiveMotif,
+            meeting_link: meetingLink || "",
+          };
+          smsContent = replaceTemplateVars(tpl.content, templateVars);
+          console.log(`[BookAppointment] Using SMS template ${config.sms_template_id}`);
+        } else {
+          // Template not found — fallback to hardcoded content
+          console.log(`[BookAppointment] SMS template ${config.sms_template_id} not found, using default`);
+          smsContent = `Bonjour ${client_name}, votre rendez-vous est confirme pour le ${date} a ${time}. Duree: ${config.slot_duration_minutes} min. Motif: ${effectiveMotif}.${meetingLinkText} A bientot !`;
+        }
+      } else {
+        // No template configured — use hardcoded default
+        smsContent = `Bonjour ${client_name}, votre rendez-vous est confirme pour le ${date} a ${time}. Duree: ${config.slot_duration_minutes} min. Motif: ${effectiveMotif}.${meetingLinkText} A bientot !`;
+      }
+
       const smsRes = await fetch(`${supabaseUrl}/functions/v1/send-sms`, {
         method: "POST",
         headers: {
@@ -843,13 +899,74 @@ async function handleBookAppointment(
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       console.log(`[BookAppointment] Sending email to ${client_email}...`);
-      const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-rdv-email`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${serviceRoleKey}`,
-        },
-        body: JSON.stringify({
+
+      let emailPayload: Record<string, unknown>;
+
+      if (config.email_template_id) {
+        // Load custom template from notification_templates table
+        const { data: tpl } = await supabase
+          .from("notification_templates")
+          .select("subject, content, header_color")
+          .eq("id", config.email_template_id)
+          .single();
+
+        if (tpl?.content) {
+          const templateVars: Record<string, string> = {
+            client_name: client_name || "",
+            client_phone: normalizedPhone,
+            client_email: client_email || "",
+            date,
+            time,
+            duration: String(config.slot_duration_minutes),
+            motif: effectiveMotif,
+            meeting_link: meetingLink || "",
+          };
+          const customSubject = tpl.subject ? replaceTemplateVars(tpl.subject, templateVars) : undefined;
+          let renderedContent = replaceTemplateVars(tpl.content, templateVars)
+            .replace(/\n/g, "<br>");
+          // Append meeting link button if available
+          if (meetingLink) {
+            renderedContent += `
+              <div style="text-align: center; margin: 20px 0;">
+                <a href="${meetingLink}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">Rejoindre la reunion en ligne</a>
+              </div>`;
+          }
+          const tplHeaderColor = tpl.header_color || "#0f172a";
+          const customBody = wrapInEmailLayout(
+            tplHeaderColor,
+            customSubject || "Confirmation de rendez-vous",
+            renderedContent
+          );
+          console.log(`[BookAppointment] Using email template ${config.email_template_id} (header: ${tplHeaderColor})`);
+          emailPayload = {
+            user_id: config.user_id,
+            to: client_email,
+            client_name,
+            date,
+            time,
+            duration_minutes: config.slot_duration_minutes,
+            motif: effectiveMotif,
+            meeting_link: meetingLink,
+            custom_subject: customSubject,
+            custom_body: customBody,
+          };
+        } else {
+          // Template not found — fallback to default email
+          console.log(`[BookAppointment] Email template ${config.email_template_id} not found, using default`);
+          emailPayload = {
+            user_id: config.user_id,
+            to: client_email,
+            client_name,
+            date,
+            time,
+            duration_minutes: config.slot_duration_minutes,
+            motif: effectiveMotif,
+            meeting_link: meetingLink,
+          };
+        }
+      } else {
+        // No template configured — use default email
+        emailPayload = {
           user_id: config.user_id,
           to: client_email,
           client_name,
@@ -858,7 +975,16 @@ async function handleBookAppointment(
           duration_minutes: config.slot_duration_minutes,
           motif: effectiveMotif,
           meeting_link: meetingLink,
-        }),
+        };
+      }
+
+      const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-rdv-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify(emailPayload),
       });
       const emailResult = await emailRes.json();
       console.log(`[BookAppointment] Email result: ${emailRes.status} — ${JSON.stringify(emailResult)}`);
@@ -885,10 +1011,34 @@ async function handleBookAppointment(
 async function handleTransferCall(
   supabase: ReturnType<typeof createClient>,
   callSid: string,
-  phoneNumber: string
+  phoneNumber: string,
+  agentId: string
 ): Promise<string> {
-  if (!callSid || !phoneNumber) {
-    return "Informations manquantes pour le transfert. Il faut le call_sid et le numero de telephone.";
+  if (!phoneNumber) {
+    return "Informations manquantes pour le transfert. Il faut le numero de telephone.";
+  }
+
+  // Resolve call_sid — fallback to DB lookup if template variable was not resolved
+  let resolvedCallSid = callSid;
+  if (!resolvedCallSid || resolvedCallSid.includes("{{") || !resolvedCallSid.startsWith("CA")) {
+    console.log(`[Transfer] Invalid call_sid "${callSid}", looking up from DB`);
+    const { data: activeConv } = await supabase
+      .from("conversations")
+      .select("twilio_call_sid")
+      .eq("agent_id", agentId)
+      .in("status", ["active", "ended"])
+      .not("twilio_call_sid", "is", null)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (activeConv?.twilio_call_sid) {
+      resolvedCallSid = activeConv.twilio_call_sid;
+      console.log(`[Transfer] Resolved call_sid from DB: ${resolvedCallSid}`);
+    } else {
+      console.log(`[Transfer] No active conversation with twilio_call_sid found`);
+      return "Impossible de determiner l'identifiant de l'appel pour le transfert.";
+    }
   }
 
   const twilioSid = Deno.env.get("TWILIO_ACCOUNT_SID");
@@ -899,14 +1049,14 @@ async function handleTransferCall(
     return "Erreur: les identifiants Twilio ne sont pas configures. Le transfert n'est pas possible.";
   }
 
-  console.log(`[Transfer] Redirecting call ${callSid} to ${phoneNumber}`);
+  console.log(`[Transfer] Redirecting call ${resolvedCallSid} to ${phoneNumber}`);
 
   try {
     const twiml = `<Response><Dial>${phoneNumber}</Dial></Response>`;
     const credentials = btoa(`${twilioSid}:${twilioToken}`);
 
     const res = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Calls/${callSid}.json`,
+      `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Calls/${resolvedCallSid}.json`,
       {
         method: "POST",
         headers: {
@@ -924,7 +1074,7 @@ async function handleTransferCall(
       await supabase
         .from("conversations")
         .update({ transferred_to: phoneNumber, transfer_status: "failed" })
-        .eq("twilio_call_sid", callSid);
+        .eq("twilio_call_sid", resolvedCallSid);
       return `Erreur lors du transfert: ${res.status}. Veuillez reessayer.`;
     }
 
@@ -935,7 +1085,7 @@ async function handleTransferCall(
     await supabase
       .from("conversations")
       .update({ transferred_to: phoneNumber, transfer_status: "success" })
-      .eq("twilio_call_sid", callSid);
+      .eq("twilio_call_sid", resolvedCallSid);
 
     return `Le transfert vers ${phoneNumber} est en cours. L'appelant va etre mis en relation avec un conseiller.`;
   } catch (err) {
@@ -944,7 +1094,7 @@ async function handleTransferCall(
     await supabase
       .from("conversations")
       .update({ transferred_to: phoneNumber, transfer_status: "failed" })
-      .eq("twilio_call_sid", callSid);
+      .eq("twilio_call_sid", resolvedCallSid);
     return "Erreur technique lors du transfert. Veuillez reessayer.";
   }
 }
@@ -1000,7 +1150,7 @@ Deno.serve(async (req) => {
         result = await handleBookAppointment(supabase, config as RdvConfig, body);
         break;
       case "transfer_call":
-        result = await handleTransferCall(supabase, body.call_sid, body.phone_number);
+        result = await handleTransferCall(supabase, body.call_sid, body.phone_number, config.agent_id);
         break;
       default:
         result = `Action inconnue: ${action}`;
